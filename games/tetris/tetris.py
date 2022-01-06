@@ -144,28 +144,6 @@ class Tetromino:
       if self.current_angle == 360 : self.current_angle = 0
       self.current_relative_coordinates = self.get_relative_coordinates(self.current_angle)
 
-#    def can_falling_piece_move(self, offset_x, offset_y) -> BooleanVar:
-#       can_move = True
-#       for coords in self.falling_piece.current_relative_coordinates:
-#          pass
-
-#    # def can_falling_piece_move_down(self):
-#    #    pass
-
-#    # def can_falling_piece_move_left(self):
-      
-#    #    pass
-
-#    # def can_falling_piece_move_right(self):
-#    #    pass
-
-#    # def can_falling_piece_rotate_left(self):
-#    #    pass
-
-#    # def can_falling_piece_rotate_right(self):
-#    #    pass   
-
-
 class Playfield:
 
    EMPTY_BLOCK = "🔳"
@@ -184,6 +162,9 @@ class Playfield:
 
    def is_block_empty(self, x: int, y: int) -> bool:
       return self.get_block(x, y) != Playfield.EMPTY_BLOCK
+
+   def is_block_within_boundaries(self, x :int, y: int) -> bool:
+      return 1 <= x <= self.width and 1 <= y <= self.height
 
    def set_block(self, x: int, y: int, value) -> None:
       self.grid[self.height - y][x - 1] = value # Coordinate system with (x,y) = (1,1) as left-bottom corner
@@ -205,28 +186,38 @@ class Tetris:
        self.playfield = Playfield(10, 20)
        self.falling_piece = self.get_next_falling_piece()
 
+       x = Tetris.FALLING_PIECE_STARTING_X
+       y = Tetris.FALLING_PIECE_STARTING_Y
+
        self.clear_screen()
+       self.put_falling_piece(x, y)
        self.playfield.print_grid()
 
        key = " "
-       starting_x = Tetris.FALLING_PIECE_STARTING_X
-       starting_y = Tetris.FALLING_PIECE_STARTING_Y
        while (key != ""):
-         offset_x = 0
-         offset_y = 0
          key = input().upper()
          self.clear_screen()
-         self.remove_falling_piece(starting_x, starting_y)
+         self.remove_falling_piece(x, y)
          
-         if key == "A":   offset_x = -1
-         elif key == "D": offset_x = 1
-         elif key == "S": offset_y = -1
-         elif key == "K": self.falling_piece.rotate_left()
-         elif key == "L": self.falling_piece.rotate_right()
+         if key == "A":
+            if self.is_falling_piece_within_boundaries(x - 1, y):
+               x -= 1
+         elif key == "D":
+            if self.is_falling_piece_within_boundaries(x + 1, y):
+               x += 1
+         elif key == "S":
+            if self.is_falling_piece_within_boundaries(x, y - 1):
+               y -= 1
+         elif key == "K":
+            self.falling_piece.rotate_left()
+            if not self.is_falling_piece_within_boundaries(x, y):
+               self.falling_piece.rotate_right()
+         elif key == "L":
+            self.falling_piece.rotate_right()
+            if not self.is_falling_piece_within_boundaries(x, y):
+               self.falling_piece.rotate_left()
 
-         starting_x += offset_x
-         starting_y += offset_y       
-         self.put_falling_piece(starting_x, starting_y)
+         self.put_falling_piece(x, y)
          self.playfield.print_grid()
 
    def get_next_falling_piece(self) -> Tetromino:      
@@ -241,6 +232,16 @@ class Tetris:
             TetrominoShape.Z_SHAPE
          ])
       )
+
+   def is_falling_piece_within_boundaries(self, rotation_center_x :int, rotation_center_y :int) -> bool:
+      condition = True
+      for coords in self.falling_piece.current_relative_coordinates:
+         relative_x = coords[0]
+         relative_y = coords[1]
+         condition = condition and self.playfield.is_block_within_boundaries(
+            rotation_center_x + relative_x,
+            rotation_center_y + relative_y)
+      return condition # TODO this with all(self.playfield.is_block_within_boundaries)
 
    def put_falling_piece(self, rotation_center_x :int, rotation_center_y :int) -> None:
       self.set_falling_piece(rotation_center_x, rotation_center_y, Playfield.FULL_BLOCK)
