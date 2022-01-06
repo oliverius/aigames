@@ -17,7 +17,8 @@ tetrominoes, name and shape (maybe colour as well)
 
 from enum import Enum, unique
 import random
-import os # TODO remove when we are not dealing with terminals and we move to TK
+import os
+from tkinter import BooleanVar # TODO remove when we are not dealing with terminals and we move to TK
 # from tkinter import *
 
 # screen = Tk()
@@ -145,6 +146,7 @@ class Tetromino:
 class Board:
    EMPTY_SYMBOL = "🔳"
 
+
    def __init__(self, width, height):
       self.width = width
       self.height = height
@@ -157,10 +159,22 @@ class Board:
    def initialize_internal_board(self) -> None:
       self.internal_board = [[Board.EMPTY_SYMBOL] * self.width for y in range(self.height)]
 
+      # coordinate system where bottom-left corner is (1,1)
+      self.internal_board_x = lambda x: x - 1
+      self.internal_board_y = lambda y: self.height - y
+
+   def can_falling_piece_move(self, offset_x, offset_y) -> BooleanVar:
+      can_move = True
+      for coords in self.falling_piece.current_relative_coordinates:
+         pass
+
+      return can_move
+
    def can_falling_piece_move_down(self):
       pass
 
    def can_falling_piece_move_left(self):
+      
       pass
 
    def can_falling_piece_move_right(self):
@@ -170,23 +184,22 @@ class Board:
       pass
 
    def can_falling_piece_rotate_right(self):
-      pass
-
-   def draw_block(self, x = 0, y = 0, symbol = EMPTY_SYMBOL) -> None:
-      # coordinate system where bottom-left corner is (1,1)
-      self.internal_board[self.height - y][x - 1] = symbol
+      pass   
 
    def draw_piece(self, piece, x = 0, y = 0, symbol = EMPTY_SYMBOL) -> None:
-      for coord in piece.current_relative_coordinates:
-         relative_x = coord[0]
-         relative_y = coord[1]
-         self.draw_block(x + relative_x, y + relative_y, symbol)
+      for coords in piece.current_relative_coordinates:
+         relative_x = coords[0]
+         relative_y = coords[1]
+         self.set_internal_board_symbol(x + relative_x, y + relative_y, symbol)
 
    def draw_falling_piece(self, falling_piece, x = 0, y = 0) -> None:
       self.draw_piece(falling_piece, x, y, "⬜")
 
    def erase_falling_piece(self, falling_piece, x = 0, y = 0) -> None:
       self.draw_piece(falling_piece, x, y, Board.EMPTY_SYMBOL)
+
+   def get_internal_board_symbol(self, x: int, y: int) -> str:
+      return self.internal_board[self.internal_board_y(y)][self.internal_board_x(x)]
 
    def print_grid(self):
       printed_grid = ""
@@ -195,6 +208,9 @@ class Board:
             printed_grid += str(self.internal_board[y][x]) + " "
          printed_grid += "\n"
       print(printed_grid)
+
+   def set_internal_board_symbol(self, x: int, y: int, symbol: str) -> None:
+      self.internal_board[self.internal_board_y(y)][self.internal_board_x(x)] = symbol
 class TetrisGame:
 
    FALLING_PIECE_STARTING_X = 5
@@ -206,7 +222,6 @@ class TetrisGame:
 
       self.clear_screen()
       self.board.print_grid()
-
       key = " "
       starting_x = 5
       starting_y = 6   
