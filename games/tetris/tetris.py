@@ -18,7 +18,8 @@ tetrominoes, name and shape (maybe colour as well)
 from enum import Enum, unique
 import random
 import os
-from tkinter import BooleanVar # TODO remove when we are not dealing with terminals and we move to TK
+from tkinter import BooleanVar
+from typing import Any, List # TODO remove when we are not dealing with terminals and we move to TK
 # from tkinter import *
 
 # screen = Tk()
@@ -143,113 +144,93 @@ class Tetromino:
       if self.current_angle == 360 : self.current_angle = 0
       self.current_relative_coordinates = self.get_relative_coordinates(self.current_angle)
 
-class Board:
-   EMPTY_SYMBOL = "🔳"
+#    def can_falling_piece_move(self, offset_x, offset_y) -> BooleanVar:
+#       can_move = True
+#       for coords in self.falling_piece.current_relative_coordinates:
+#          pass
 
+#    # def can_falling_piece_move_down(self):
+#    #    pass
 
-   def __init__(self, width, height):
-      self.width = width
-      self.height = height
-      self.internal_board = []
-      self.initialize_internal_board() # todo board is really 22 height but the upper 2 lines are invisible and that's where we drop the pieces
-      self.falling_piece = {}
-      self.falling_piece_x = 0
-      self_falling_piece_y = 0
+#    # def can_falling_piece_move_left(self):
       
-   def initialize_internal_board(self) -> None:
-      self.internal_board = [[Board.EMPTY_SYMBOL] * self.width for y in range(self.height)]
+#    #    pass
 
-      # coordinate system where bottom-left corner is (1,1)
-      self.internal_board_x = lambda x: x - 1
-      self.internal_board_y = lambda y: self.height - y
+#    # def can_falling_piece_move_right(self):
+#    #    pass
 
-   def can_falling_piece_move(self, offset_x, offset_y) -> BooleanVar:
-      can_move = True
-      for coords in self.falling_piece.current_relative_coordinates:
-         pass
+#    # def can_falling_piece_rotate_left(self):
+#    #    pass
 
-      return can_move
+#    # def can_falling_piece_rotate_right(self):
+#    #    pass   
 
-   def can_falling_piece_move_down(self):
-      pass
 
-   def can_falling_piece_move_left(self):
-      
-      pass
+class Playfield:
 
-   def can_falling_piece_move_right(self):
-      pass
+   EMPTY_BLOCK = "🔳"
+   FULL_BLOCK = "⬜"
+   
+   def __init__(self, width: int, height: int) -> None:
+       self.width = width
+       self.height = height
+       self.grid = self.get_initialized_grid()
 
-   def can_falling_piece_rotate_left(self):
-      pass
+   def get_block(self, x: int, y: int) -> str:
+      return self.grid[self.height - y][x - 1] # Coordinate system with (x,y) = (1,1) as left-bottom corner
 
-   def can_falling_piece_rotate_right(self):
-      pass   
+   def get_initialized_grid(self) -> List:
+      return [[Playfield.EMPTY_BLOCK] * self.width for y in range(self.height)]
 
-   def draw_piece(self, piece, x = 0, y = 0, symbol = EMPTY_SYMBOL) -> None:
-      for coords in piece.current_relative_coordinates:
-         relative_x = coords[0]
-         relative_y = coords[1]
-         self.set_internal_board_symbol(x + relative_x, y + relative_y, symbol)
+   def is_block_empty(self, x: int, y: int) -> bool:
+      return self.get_block(x, y) != Playfield.EMPTY_BLOCK
 
-   def draw_falling_piece(self, falling_piece, x = 0, y = 0) -> None:
-      self.draw_piece(falling_piece, x, y, "⬜")
+   def set_block(self, x: int, y: int, value) -> None:
+      self.grid[self.height - y][x - 1] = value # Coordinate system with (x,y) = (1,1) as left-bottom corner
 
-   def erase_falling_piece(self, falling_piece, x = 0, y = 0) -> None:
-      self.draw_piece(falling_piece, x, y, Board.EMPTY_SYMBOL)
-
-   def get_internal_board_symbol(self, x: int, y: int) -> str:
-      return self.internal_board[self.internal_board_y(y)][self.internal_board_x(x)]
-
-   def print_grid(self):
+   def print_grid(self): # TODO remove this function when we do graphical grid
       printed_grid = ""
       for y in range(self.height):
          for x in range(self.width):
-            printed_grid += str(self.internal_board[y][x]) + " "
+            printed_grid += str(self.grid[y][x]) + " "
          printed_grid += "\n"
       print(printed_grid)
 
-   def set_internal_board_symbol(self, x: int, y: int, symbol: str) -> None:
-      self.internal_board[self.internal_board_y(y)][self.internal_board_x(x)] = symbol
-class TetrisGame:
+class Tetris:
 
    FALLING_PIECE_STARTING_X = 5
-   FALLING_PIECE_STARTING_Y = 18
+   FALLING_PIECE_STARTING_Y = 4
 
    def __init__(self) -> None:
-      self.board = Board(10, 20)
-      falling_piece = self.get_next_falling_piece()
+       self.playfield = Playfield(10, 20)
+       self.falling_piece = self.get_next_falling_piece()
 
-      self.clear_screen()
-      self.board.print_grid()
-      key = " "
-      starting_x = 5
-      starting_y = 6   
-      while (key != ""):
+       self.clear_screen()
+       self.playfield.print_grid()
+
+       key = " "
+       starting_x = Tetris.FALLING_PIECE_STARTING_X
+       starting_y = Tetris.FALLING_PIECE_STARTING_Y
+       while (key != ""):
          offset_x = 0
          offset_y = 0
-         key = input()
-         key = key.upper()
+         key = input().upper()
          self.clear_screen()
-         self.board.erase_falling_piece(falling_piece, starting_x, starting_y)
+         self.remove_falling_piece(starting_x, starting_y)
          
          if key == "A":   offset_x = -1
          elif key == "D": offset_x = 1
          elif key == "S": offset_y = -1
-         elif key == "K": falling_piece.rotate_left()
-         elif key == "L": falling_piece.rotate_right()
+         elif key == "K": self.falling_piece.rotate_left()
+         elif key == "L": self.falling_piece.rotate_right()
 
-         starting_x = starting_x + offset_x
-         starting_y = starting_y + offset_y       
-         self.board.draw_falling_piece(falling_piece, starting_x, starting_y)
-         self.board.print_grid()
+         starting_x += offset_x
+         starting_y += offset_y       
+         self.put_falling_piece(starting_x, starting_y)
+         self.playfield.print_grid()
 
-   def clear_screen(self) -> None:
-     os.system('cls' if os.name == 'nt' else 'clear') # TODO remove when we move to TK
-
-   def get_next_falling_piece(self) -> Tetromino:
-      #falling_piece = Tetromino(TetrominoShape.L_SHAPE) # TODO random shapes
-      falling_piece = Tetromino(
+   def get_next_falling_piece(self) -> Tetromino:      
+      return Tetromino(
          random.choice([
             TetrominoShape.I_SHAPE,
             TetrominoShape.J_SHAPE,
@@ -260,7 +241,21 @@ class TetrisGame:
             TetrominoShape.Z_SHAPE
          ])
       )
-      return falling_piece
 
-TetrisGame()
+   def put_falling_piece(self, rotation_center_x :int, rotation_center_y :int) -> None:
+      self.set_falling_piece(rotation_center_x, rotation_center_y, Playfield.FULL_BLOCK)
+
+   def remove_falling_piece(self, rotation_center_x :int, rotation_center_y :int) -> None:
+      self.set_falling_piece(rotation_center_x, rotation_center_y, Playfield.EMPTY_BLOCK)
+
+   def set_falling_piece(self, rotation_center_x :int, rotation_center_y :int, value :str) -> None:
+      for coords in self.falling_piece.current_relative_coordinates:
+         relative_x = coords[0]
+         relative_y = coords[1]
+         self.playfield.set_block(rotation_center_x + relative_x, rotation_center_y + relative_y, value)
+   
+   def clear_screen(self) -> None:
+      os.system('cls' if os.name == 'nt' else 'clear') # TODO remove when we move to TK
+
 # TODO graphics_board (the real game board)
+Tetris()
