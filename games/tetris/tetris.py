@@ -79,10 +79,10 @@ class Tetromino:
          "shape": TetrominoShape.L_SHAPE,
          "color": TetrominoColor.ORANGE,
          "orientations": [
-            { "angles": [ 0   ], "relative_coordinates": [ [0, 0], [-1,  0], [ -1,  1], [1, 0] ] },
-            { "angles": [ 90  ], "relative_coordinates": [ [0, 0], [ 0, -1], [ 0,  1], [1, 1] ] },
-            { "angles": [ 180 ], "relative_coordinates": [ [0, 0], [ -1, 0], [1, 0], [1, -1] ] },
-            { "angles": [ 270 ], "relative_coordinates": [ [0, 0], [ 0,  1], [ 0,  -1], [-1, -1] ] }
+            { "angles": [ 0   ], "relative_coordinates": [ [ 0,  0], [-1,  0], [-1,  1], [ 1,  0] ] },
+            { "angles": [ 90  ], "relative_coordinates": [ [ 0,  0], [ 0, -1], [ 0,  1], [ 1,  1] ] },
+            { "angles": [ 180 ], "relative_coordinates": [ [ 0,  0], [-1,  0], [ 1,  0], [ 1, -1] ] },
+            { "angles": [ 270 ], "relative_coordinates": [ [ 0,  0], [ 0,  1], [ 0, -1], [-1, -1] ] }
          ]
       },
       {
@@ -133,7 +133,7 @@ class Tetromino:
       self.current_relative_coordinates = self.get_relative_coordinates(0)
 
    def get_relative_coordinates(self, angle = 0):
-      data = next((orientation for orientation in self.orientations if angle in orientation["angles"]), None)      
+      data = next((orientation for orientation in self.orientations if angle in orientation["angles"]), None)
       return data["relative_coordinates"]
 
    def rotate_left(self):
@@ -145,7 +145,6 @@ class Tetromino:
       self.current_angle += 90
       if self.current_angle == 360 : self.current_angle = 0
       self.current_relative_coordinates = self.get_relative_coordinates(self.current_angle)
-
 
 class Board:
    EMPTY_SYMBOL = "◻"
@@ -174,12 +173,15 @@ class Board:
    def can_falling_piece_rotate_right(self):
       pass
 
-   def draw_piece(self, piece, x = 0, y = 0, symbol = EMPTY_SYMBOL):
+   def draw_block(self, x = 0, y = 0, symbol = EMPTY_SYMBOL) -> None:
+      # coordinate system where bottom-left corner is (1,1)
+      self.internal_board[self.height - y][x - 1] = symbol
+
+   def draw_piece(self, piece, x = 0, y = 0, symbol = EMPTY_SYMBOL) -> None:
       for coord in piece.current_relative_coordinates:
          relative_x = coord[0]
          relative_y = coord[1]
-         self.internal_board[y - relative_y][x + relative_x] = symbol # y is (-) because board coordinates start from top-left corner instead of bottom-left corner
-         # TODO method to have internal coordinates to start 0,0 in the left bottom corner
+         self.draw_block(x + relative_x, y + relative_y, symbol)
 
    def draw_falling_piece(self, falling_piece, x = 0, y = 0) -> None:
       self.draw_piece(falling_piece, x, y, "X")
@@ -196,19 +198,26 @@ class Board:
       print(printed_grid)
 
 class TetrisGame:
+
+   FALLING_PIECE_STARTING_X = 5
+   FALLING_PIECE_STARTING_Y = 18
+
    def __init__(self) -> None:
       self.board = Board(10, 20)
       falling_piece = self.get_next_falling_piece()
-      self.board.draw_falling_piece(falling_piece, 5, 6)
-      self.board.print_grid()
+      key = ""
+      while (key != " "):
+         key = input()
+         print(key)
+         self.board.erase_falling_piece(falling_piece, 5, 5)
+         falling_piece.rotate_right()
+         self.board.draw_falling_piece(falling_piece, 5, 5)
+         self.board.print_grid()
 
    
 
    def get_next_falling_piece(self) -> Tetromino:
       falling_piece = Tetromino(TetrominoShape.L_SHAPE)
-      #falling_piece.rotate_right()
-      #falling_piece.rotate_right()
-      #falling_piece.rotate_right()
       return falling_piece
 
 
