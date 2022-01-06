@@ -52,103 +52,120 @@ class TetrominoShape(Enum):
    T_SHAPE = 6
    Z_SHAPE = 7
 
-
-
 class Tetromino:
+   # Based on https://tetris.fandom.com/wiki/SRS
    tetrominoes = [
       {
-         "shape": TetrominoShape.I_SHAPE,             #
-         "color": TetrominoColor.CYAN,                #
-         "orientation": 0,                            #
-         "coordinates": [[0,0], [0,1], [0,2], [0,3]]  #  O O O O
+         "shape": TetrominoShape.I_SHAPE,
+         "color": TetrominoColor.CYAN,
+         "orientations": [
+            { "angles": [ 0   ], "relative_coordinates": [ [-1,  0], [-1,  1], [ 0,  0], [1, 0] ] },
+            { "angles": [ 90  ], "relative_coordinates": [ [ 0, -1], [ 0,  0], [ 1,  0], [1, 1] ] },
+            { "angles": [ 180 ], "relative_coordinates": [ [ 0,  0], [ 0, -1], [-1, -1], [0, 1] ] },
+            { "angles": [ 270 ], "relative_coordinates": [ [ 0,  0], [ 1,  0], [ 0,  1], [0, 2] ] }
+         ]
+      }, 
+      {
+         "shape": TetrominoShape.J_SHAPE,
+         "color": TetrominoColor.BLUE,
+         "orientations": [
+            { "angles": [ 0   ], "relative_coordinates": [ [-1,  0], [-1,  1], [ 0,  0], [1, 0] ] },
+            { "angles": [ 90  ], "relative_coordinates": [ [ 0, -1], [ 0,  0], [ 1,  0], [1, 1] ] },
+            { "angles": [ 180 ], "relative_coordinates": [ [ 0,  0], [ 0, -1], [-1, -1], [0, 1] ] },
+            { "angles": [ 270 ], "relative_coordinates": [ [ 0,  0], [ 1,  0], [ 0,  1], [0, 2] ] }
+         ]
       },
       {
-         "shape": TetrominoShape.J_SHAPE,             #
-         "color": TetrominoColor.BLUE,                #
-         "orientation": 0,                            #  O
-         "coordinates": [[0,0], [0,1], [0,2], [0,3]]  #  O O O O
+         "shape": TetrominoShape.L_SHAPE,
+         "color": TetrominoColor.ORANGE,
+         "orientations": [
+            { "angles": [ 0   ], "relative_coordinates": [ [0, 0], [-1,  0], [ -1,  1], [1, 0] ] },
+            { "angles": [ 90  ], "relative_coordinates": [ [0, 0], [ 0, -1], [ 0,  1], [1, 1] ] },
+            { "angles": [ 180 ], "relative_coordinates": [ [0, 0], [ -1, 0], [1, 0], [1, -1] ] },
+            { "angles": [ 270 ], "relative_coordinates": [ [0, 0], [ 0,  1], [ 0,  -1], [-1, -1] ] }
+         ]
       },
       {
-         "shape": TetrominoShape.L_SHAPE,             #
-         "color": TetrominoColor.ORANGE,              #
-         "orientation": 0,                            #        O
-         "coordinates": [[0,0], [1,0], [0,1], [0,2]]  #  O O O O
+         "shape": TetrominoShape.O_SHAPE,
+         "color": TetrominoColor.YELLOW,
+         "orientations": [
+            { "angles": [ 0, 90, 180, 270 ], "relative_coordinates": [ [0, 0], [1, 0], [0, 1], [0, 2] ] }
+         ]
       },
       {
-         "shape": TetrominoShape.O_SHAPE,             #
-         "color": TetrominoColor.YELLOW,              #
-         "orientation": 0,                            #  O O
-         "coordinates": [[0,0], [0,1], [0,2], [0,3]]  #  O O
+         "shape": TetrominoShape.S_SHAPE,
+         "color": TetrominoColor.GREEN,
+          "orientations": [
+            { "angles": [ 0   ], "relative_coordinates": [ [0, 0], [1, 0], [0, 1], [0, 2] ] },
+            { "angles": [ 90  ], "relative_coordinates": [ [0, 0], [1, 0], [0, 1], [0, 2] ] },
+            { "angles": [ 180 ], "relative_coordinates": [ [0, 0], [1, 0], [0, 1], [0, 2] ] },
+            { "angles": [ 270 ], "relative_coordinates": [ [0, 0], [1, 0], [0, 1], [0, 2] ] }
+         ]
       },
       {
-         "shape": TetrominoShape.S_SHAPE,             #
-         "color": TetrominoColor.GREEN,               #
-         "orientation": 0,                            #    O O
-         "coordinates": [[0,0], [0,1], [0,2], [0,3]]  #  O O
+         "shape": TetrominoShape.T_SHAPE,
+         "color": TetrominoColor.PURPLE,
+         "orientations": [
+            { "angles": [ 0   ], "relative_coordinates": [ [0, 0], [1, 0], [0, 1], [0, 2] ] },
+            { "angles": [ 90  ], "relative_coordinates": [ [0, 0], [1, 0], [0, 1], [0, 2] ] },
+            { "angles": [ 180 ], "relative_coordinates": [ [0, 0], [1, 0], [0, 1], [0, 2] ] },
+            { "angles": [ 270 ], "relative_coordinates": [ [0, 0], [1, 0], [0, 1], [0, 2] ] }
+         ]
       },
       {
-         "shape": TetrominoShape.T_SHAPE,             #
-         "color": TetrominoColor.PURPLE,              #
-         "orientation": 0,                            #    O
-         "coordinates": [[0,0], [0,1], [0,2], [0,3]]  #  O O O
-      },
-      {
-         "shape": TetrominoShape.Z_SHAPE,             #
-         "color": TetrominoColor.RED,                 #
-         "orientation": 0,                            #  O O
-         "coordinates": [[0,0], [0,1], [0,2], [0,3]]  #    O O
+         "shape": TetrominoShape.Z_SHAPE,
+         "color": TetrominoColor.RED,
+         "orientations": [
+            { "angles": [ 0   ], "relative_coordinates": [ [0, 0], [1, 0], [0, 1], [0, 2] ] },
+            { "angles": [ 90  ], "relative_coordinates": [ [0, 0], [1, 0], [0, 1], [0, 2] ] },
+            { "angles": [ 180 ], "relative_coordinates": [ [0, 0], [1, 0], [0, 1], [0, 2] ] },
+            { "angles": [ 270 ], "relative_coordinates": [ [0, 0], [1, 0], [0, 1], [0, 2] ] }
+         ]
       }
    ]
    def __init__(self, shape = TetrominoShape.NONE):
       data = next((tetromino for tetromino in self.tetrominoes if tetromino["shape"] == shape), None)
       self.shape = data["shape"]
-      self.orientation = data["orientation"]
       self.color = data["color"]
-      self.coordinates = data["coordinates"]
+      self.orientations = data["orientations"]
 
-   def rotate_left():
-      pass
+      self.current_angle = 0
+      self.current_relative_coordinates = self.get_relative_coordinates(0)
 
-   def rotate_right():
-      pass
+   def get_relative_coordinates(self, angle = 0):
+      data = next((orientation for orientation in self.orientations if angle in orientation["angles"]), None)      
+      return data["relative_coordinates"]
+
+   def rotate_left(self):
+      self.current_angle -= 90
+      if self.current_angle == -90 : self.current_angle = 270
+      self.current_relative_coordinates = self.get_relative_coordinates(self.current_angle)
+
+   def rotate_right(self):
+      self.current_angle += 90
+      if self.current_angle == 360 : self.current_angle = 0
+      self.current_relative_coordinates = self.get_relative_coordinates(self.current_angle)
+
 
 class Board:
+   EMPTY_SYMBOL = "◻"
+
    def __init__(self, width, height):
       self.width = width
       self.height = height
-      self.grid = []
-      self.initialize_grid()
+      self.internal_board = []
+      self.initialize_internal_board() # todo board is really 22 height but the upper 2 lines are invisible and that's where we drop the pieces
       
-   def initialize_grid(self):
-      self.grid = [["◻"] * self.width for i in range(self.height)]
+   def initialize_internal_board(self) -> None:
+      self.internal_board = [[Board.EMPTY_SYMBOL] * self.width for y in range(self.height)]
 
-
-
-
-
-   def print_grid(self):
-      printed_grid = ""
-      for y in range(self.height):
-         for x in range(self.width):
-            printed_grid += str(self.grid[y][x]) + " "
-         printed_grid += "\n"
-      print(printed_grid)
-
-class TetrisGame:
-   def __init__(self) -> None:
-      self.board = Board(10, 20)
-      piece = self.get_next_falling_piece()
-
-
-      self.board.print_grid()
+   def can_falling_piece_move_down(self):
+      pass
 
    def can_falling_piece_move_left(self):
       pass
 
    def can_falling_piece_move_right(self):
-      pass
-
-   def can_falling_piece_move_down(self):
       pass
 
    def can_falling_piece_rotate_left(self):
@@ -157,10 +174,44 @@ class TetrisGame:
    def can_falling_piece_rotate_right(self):
       pass
 
+   def draw_piece(self, piece, x = 0, y = 0, symbol = EMPTY_SYMBOL):
+      for coord in piece.current_relative_coordinates:
+         relative_x = coord[0]
+         relative_y = coord[1]
+         self.internal_board[y - relative_y][x + relative_x] = symbol # y is (-) because board coordinates start from top-left corner instead of bottom-left corner
+         # TODO method to have internal coordinates to start 0,0 in the left bottom corner
+
+   def draw_falling_piece(self, falling_piece, x = 0, y = 0) -> None:
+      self.draw_piece(falling_piece, x, y, "X")
+
+   def erase_falling_piece(self, falling_piece, x = 0, y = 0) -> None:
+      self.draw_piece(falling_piece, x, y, Board.EMPTY_SYMBOL)
+
+   def print_grid(self):
+      printed_grid = ""
+      for y in range(self.height):
+         for x in range(self.width):
+            printed_grid += str(self.internal_board[y][x]) + " "
+         printed_grid += "\n"
+      print(printed_grid)
+
+class TetrisGame:
+   def __init__(self) -> None:
+      self.board = Board(10, 20)
+      falling_piece = self.get_next_falling_piece()
+      self.board.draw_falling_piece(falling_piece, 5, 6)
+      self.board.print_grid()
+
+   
+
    def get_next_falling_piece(self) -> Tetromino:
       falling_piece = Tetromino(TetrominoShape.L_SHAPE)
+      #falling_piece.rotate_right()
+      #falling_piece.rotate_right()
+      #falling_piece.rotate_right()
       return falling_piece
 
 
 
 game = TetrisGame()
+# TODO graphics_board (the real game board)
