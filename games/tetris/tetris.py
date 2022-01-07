@@ -160,8 +160,13 @@ class Playfield:
    def get_initialized_grid(self) -> List:
       return [[Playfield.EMPTY_BLOCK] * self.width for y in range(self.height)]
 
+   def is_block_available(self, x: int, y: int) -> bool:
+      # Order is important. First check for the boundaries and later if it is empty
+      # If we do the opposite we may check for a (x,y) that doesn't exist and will error
+      return self.is_block_within_boundaries(x, y) and self.is_block_empty(x, y)
+
    def is_block_empty(self, x: int, y: int) -> bool:
-      return self.get_block(x, y) != Playfield.EMPTY_BLOCK
+      return self.get_block(x, y) == Playfield.EMPTY_BLOCK
 
    def is_block_within_boundaries(self, x :int, y: int) -> bool:
       return 1 <= x <= self.width and 1 <= y <= self.height
@@ -200,25 +205,35 @@ class Tetris:
          self.remove_falling_piece(x, y)
          
          if key == "A":
-            if self.is_falling_piece_within_boundaries(x - 1, y):
+            if self.can_falling_piece_move(x - 1, y):
                x -= 1
          elif key == "D":
-            if self.is_falling_piece_within_boundaries(x + 1, y):
+            if self.can_falling_piece_move(x + 1, y):
                x += 1
          elif key == "S":
-            if self.is_falling_piece_within_boundaries(x, y - 1):
+            if self.can_falling_piece_move(x, y - 1):
                y -= 1
          elif key == "K":
             self.falling_piece.rotate_left()
-            if not self.is_falling_piece_within_boundaries(x, y):
+            if not self.can_falling_piece_move(x, y):
                self.falling_piece.rotate_right()
          elif key == "L":
             self.falling_piece.rotate_right()
-            if not self.is_falling_piece_within_boundaries(x, y):
+            if not self.can_falling_piece_move(x, y):
                self.falling_piece.rotate_left()
 
          self.put_falling_piece(x, y)
          self.playfield.print_grid()
+
+   def can_falling_piece_move(self, rotation_center_x :int, rotation_center_y :int) -> bool:
+      condition = True
+      for coords in self.falling_piece.current_relative_coordinates:
+         relative_x = coords[0]
+         relative_y = coords[1]
+         condition = condition and self.playfield.is_block_available(
+            rotation_center_x + relative_x,
+            rotation_center_y + relative_y)
+      return condition # TODO this with all(self.playfield.is_block_within_boundaries) after we check if not empty
 
    def get_next_falling_piece(self) -> Tetromino:      
       return Tetromino(
@@ -232,19 +247,9 @@ class Tetris:
             TetrominoShape.Z_SHAPE
          ])
       )
-
-   def is_falling_piece_within_boundaries(self, rotation_center_x :int, rotation_center_y :int) -> bool:
-      condition = True
-      for coords in self.falling_piece.current_relative_coordinates:
-         relative_x = coords[0]
-         relative_y = coords[1]
-         condition = condition and self.playfield.is_block_within_boundaries(
-            rotation_center_x + relative_x,
-            rotation_center_y + relative_y)
-      return condition # TODO this with all(self.playfield.is_block_within_boundaries)
-
+   
    def put_falling_piece(self, rotation_center_x :int, rotation_center_y :int) -> None:
-      self.set_falling_piece(rotation_center_x, rotation_center_y, Playfield.FULL_BLOCK)
+      self.set_falling_piece(rotation_center_x, rotation_center_y, Playfield.FULL_BLOCK)  
 
    def remove_falling_piece(self, rotation_center_x :int, rotation_center_y :int) -> None:
       self.set_falling_piece(rotation_center_x, rotation_center_y, Playfield.EMPTY_BLOCK)
