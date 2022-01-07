@@ -185,7 +185,7 @@ class Playfield:
 class Tetris:
 
    FALLING_PIECE_STARTING_X = 5
-   FALLING_PIECE_STARTING_Y = 4
+   FALLING_PIECE_STARTING_Y = 19
 
    def __init__(self) -> None:
        self.playfield = Playfield(10, 20)
@@ -198,7 +198,7 @@ class Tetris:
        self.put_falling_piece(x, y)
        self.playfield.print_grid()
 
-       key = " "
+       key = "X"
        while (key != ""):
          key = input().upper()
          self.clear_screen()
@@ -250,9 +250,7 @@ class Tetris:
       self.set_falling_piece(rotation_center_x, rotation_center_y, Playfield.EMPTY_BLOCK)
 
    def set_falling_piece(self, rotation_center_x :int, rotation_center_y :int, value :str) -> None:
-      for coords in self.falling_piece.current_relative_coordinates:
-         relative_x = coords[0]
-         relative_y = coords[1]
+      for relative_x, relative_y in self.falling_piece.current_relative_coordinates:
          self.playfield.set_block(rotation_center_x + relative_x, rotation_center_y + relative_y, value)
    
    def clear_screen(self) -> None:
