@@ -202,27 +202,39 @@ class Tetris:
        while (key != ""):
          key = input().upper()
          self.clear_screen()
-         self.remove_falling_piece(x, y)
          
          if key == "A":
+            self.remove_falling_piece(x, y)
             if self.can_falling_piece_move(x - 1, y):
                x -= 1
+            self.put_falling_piece(x, y)
+
          elif key == "D":
+            self.remove_falling_piece(x, y)
             if self.can_falling_piece_move(x + 1, y):
                x += 1
+            self.put_falling_piece(x, y)
+
          elif key == "S":
+            self.remove_falling_piece(x, y)
             if self.can_falling_piece_move(x, y - 1):
                y -= 1
+            self.put_falling_piece(x, y)
+
          elif key == "K":
+            self.remove_falling_piece(x, y)
             self.falling_piece.rotate_left()
             if not self.can_falling_piece_move(x, y):
                self.falling_piece.rotate_right()
+            self.put_falling_piece(x, y)
+            
          elif key == "L":
+            self.remove_falling_piece(x, y)
             self.falling_piece.rotate_right()
             if not self.can_falling_piece_move(x, y):
                self.falling_piece.rotate_left()
+            self.put_falling_piece(x, y)
 
-         self.put_falling_piece(x, y)
          self.playfield.print_grid()
 
    def can_falling_piece_move(self, rotation_center_x :int, rotation_center_y :int) -> bool:
