@@ -176,14 +176,17 @@ class Playfield:
 class Falling_Piece:
 
    def __init__(self, shape :TetrominoShape, tetrominoes_data :list) -> None:
-      self.rotation_center_x = 0
-      self.rotation_center_y = 0
+      self.center_x = 0
+      self.center_y = 0
       
       self.tetrominoes_data = tetrominoes_data
 
       self.set_shape(shape)
-       
-   def get_relative_coordinates(self, angle :int):
+
+   def get_absolute_coordinates(self, center_x :int, center_y :int):
+      return [ [center_x + relative_x, center_y + relative_y] for relative_x, relative_y in self.relative_coordinates]
+
+   def get_relative_coordinates(self, angle :int) -> Any:
       data = next((orientation for orientation in self.orientations if angle in orientation["angles"]), None)
       return data["relative_coordinates"]
 
@@ -269,15 +272,15 @@ class Tetris:
          self.put_falling_piece(x, y)
          self.playfield.print_grid()
 
-   def can_falling_piece_move(self, rotation_center_x :int, rotation_center_y :int) -> bool:
+   def can_falling_piece_move(self, center_x :int, center_y :int) -> bool:
       return all([
-         self.playfield.is_block_available(rotation_center_x + relative_x, rotation_center_y + relative_y)
-         for relative_x, relative_y in self.falling_piece.relative_coordinates])
+         self.playfield.is_block_available(x, y)
+         for x, y in self.falling_piece.get_absolute_coordinates(center_x, center_y)])
 
-   def drop_falling_piece(self, rotation_center_x :int, rotation_center_y :int) -> List:
-      while self.can_falling_piece_move(rotation_center_x, rotation_center_y - 1):
-         rotation_center_y -= 1
-      return [rotation_center_x, rotation_center_y]
+   def drop_falling_piece(self, center_x :int, center_y :int) -> List:
+      while self.can_falling_piece_move(center_x, center_y - 1):
+         center_y -= 1
+      return [center_x, center_y]
 
    def get_next_shape(self) -> TetrominoShape:
       return random.choice([
@@ -290,15 +293,15 @@ class Tetris:
          TetrominoShape.Z_SHAPE
       ])
    
-   def put_falling_piece(self, rotation_center_x :int, rotation_center_y :int) -> None:
-      self.set_falling_piece(rotation_center_x, rotation_center_y, self.playfield.full_block)  
+   def put_falling_piece(self, center_x :int, center_y :int) -> None:
+      self.set_falling_piece(center_x, center_y, self.playfield.full_block)  
 
-   def remove_falling_piece(self, rotation_center_x :int, rotation_center_y :int) -> None:
-      self.set_falling_piece(rotation_center_x, rotation_center_y, self.playfield.empty_block)
+   def remove_falling_piece(self, center_x :int, center_y :int) -> None:
+      self.set_falling_piece(center_x, center_y, self.playfield.empty_block)
 
-   def set_falling_piece(self, rotation_center_x :int, rotation_center_y :int, value :str) -> None:
-      for relative_x, relative_y in self.falling_piece.relative_coordinates:
-         self.playfield.set_block(rotation_center_x + relative_x, rotation_center_y + relative_y, value)
+   def set_falling_piece(self, center_x :int, center_y :int, value :str) -> None:
+      for x, y in self.falling_piece.get_absolute_coordinates(center_x, center_y):
+         self.playfield.set_block(x, y, value)
    
    def clear_screen(self) -> None:
       os.system('cls' if os.name == 'nt' else 'clear') # TODO remove when we move to TK
