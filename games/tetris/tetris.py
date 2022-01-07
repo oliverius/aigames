@@ -226,14 +226,9 @@ class Tetris:
          self.playfield.print_grid()
 
    def can_falling_piece_move(self, rotation_center_x :int, rotation_center_y :int) -> bool:
-      condition = True
-      for coords in self.falling_piece.current_relative_coordinates:
-         relative_x = coords[0]
-         relative_y = coords[1]
-         condition = condition and self.playfield.is_block_available(
-            rotation_center_x + relative_x,
-            rotation_center_y + relative_y)
-      return condition # TODO this with all(self.playfield.is_block_within_boundaries) after we check if not empty
+      return all([
+         self.playfield.is_block_available(rotation_center_x + relative_x, rotation_center_y + relative_y)
+         for relative_x, relative_y in self.falling_piece.current_relative_coordinates])
 
    def get_next_falling_piece(self) -> Tetromino:      
       return Tetromino(
