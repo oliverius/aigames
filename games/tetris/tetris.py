@@ -30,6 +30,7 @@ from typing import Any, List # TODO remove when we are not dealing with terminal
 # screen.mainloop()
 
 
+
 @unique
 class TetrominoColor(Enum):
    NONE = 0
@@ -51,6 +52,90 @@ class TetrominoShape(Enum):
    S_SHAPE = 5
    T_SHAPE = 6
    Z_SHAPE = 7
+
+config = {
+   # Based on https://tetris.fandom.com/wiki/SRS
+   "tetrominoes": [
+      {
+         "shape": TetrominoShape.I_SHAPE,
+         "color": TetrominoColor.CYAN,
+         "orientations": [
+            { "angles": [  0, 180 ], "relative_coordinates": [ [0, 0], [-1,  0], [-2,  0], [1,  0] ] },
+            { "angles": [ 90, 270 ], "relative_coordinates": [ [0, 0], [ 0,  1], [ 0,  2], [0, -1] ] }
+         ]
+      },
+      {
+         "shape": TetrominoShape.J_SHAPE,
+         "color": TetrominoColor.BLUE,
+         "orientations": [
+            { "angles": [ 0   ], "relative_coordinates": [ [0, 0], [-1,  0], [-1,  1], [ 1,  0] ] },
+            { "angles": [ 90  ], "relative_coordinates": [ [0, 0], [ 0, -1], [ 0,  1], [ 1,  1] ] },
+            { "angles": [ 180 ], "relative_coordinates": [ [0, 0], [-1,  0], [ 1,  0], [ 1, -1] ] },
+            { "angles": [ 270 ], "relative_coordinates": [ [0, 0], [ 0,  1], [ 0, -1], [-1, -1] ] }
+         ]
+      },
+      {
+         "shape": TetrominoShape.L_SHAPE,
+         "color": TetrominoColor.ORANGE,
+         "orientations": [
+            { "angles": [ 0   ], "relative_coordinates": [ [0, 0], [-1,  0], [-1,  1], [ 1,  0] ] },
+            { "angles": [ 90  ], "relative_coordinates": [ [0, 0], [ 0, -1], [ 0,  1], [ 1,  1] ] },
+            { "angles": [ 180 ], "relative_coordinates": [ [0, 0], [-1,  0], [ 1,  0], [ 1, -1] ] },
+            { "angles": [ 270 ], "relative_coordinates": [ [0, 0], [ 0,  1], [ 0, -1], [-1, -1] ] }
+         ]
+      },
+      {
+         "shape": TetrominoShape.O_SHAPE,
+         "color": TetrominoColor.YELLOW,
+         "orientations": [
+            { "angles": [ 0, 90, 180, 270 ], "relative_coordinates": [ [0, 0], [0, 1], [1, 0], [1, 1] ] }
+         ]
+      },
+      {
+         "shape": TetrominoShape.S_SHAPE,
+         "color": TetrominoColor.GREEN,
+          "orientations": [
+            { "angles": [ 0   ], "relative_coordinates": [ [0, 0], [-1,  0], [ 0,  1], [1,  1] ] },
+            { "angles": [ 90  ], "relative_coordinates": [ [0, 0], [ 0,  1], [ 1,  0], [1, -1] ] },
+            { "angles": [ 180 ], "relative_coordinates": [ [0, 0], [-1, -1], [ 0, -1], [1,  0] ] },
+            { "angles": [ 270 ], "relative_coordinates": [ [0, 0], [-1,  0], [-1,  1], [0, -1] ] }
+         ]
+      },
+      {
+         "shape": TetrominoShape.T_SHAPE,
+         "color": TetrominoColor.PURPLE,
+         "orientations": [
+            { "angles": [ 0   ], "relative_coordinates": [ [0, 0], [-1,  0], [1,  0], [0,  1] ] },
+            { "angles": [ 90  ], "relative_coordinates": [ [0, 0], [ 0,  1], [0, -1], [1,  0] ] },
+            { "angles": [ 180 ], "relative_coordinates": [ [0, 0], [-1,  0], [1,  0], [0, -1] ] },
+            { "angles": [ 270 ], "relative_coordinates": [ [0, 0], [-1,  0], [0,  1], [0, -1] ] }
+         ]
+      },
+      {
+         "shape": TetrominoShape.Z_SHAPE,
+         "color": TetrominoColor.RED,
+         "orientations": [
+            { "angles": [ 0   ], "relative_coordinates": [ [0, 0], [ 0,  1], [-1,  1], [1,  0] ] },
+            { "angles": [ 90  ], "relative_coordinates": [ [0, 0], [ 0, -1], [ 1,  0], [1,  1] ] },
+            { "angles": [ 180 ], "relative_coordinates": [ [0, 0], [-1,  0], [ 0, -1], [1, -1] ] },
+            { "angles": [ 270 ], "relative_coordinates": [ [0, 0], [-1,  0], [-1, -1], [0,  1] ] }
+         ]
+      }
+   ],
+   "playfield": {
+      "width": 10,
+      "height": 20,
+      "falling_piece": {
+         "starting_x": 5,
+         "starting_y": 19
+      },
+      "blocks": {
+          "empty_block": "🔳",
+          "full_block" : "⬜"
+      }
+   }
+}
+
 
 class Tetromino:
    # Based on https://tetris.fandom.com/wiki/SRS
@@ -145,20 +230,19 @@ class Tetromino:
       self.current_relative_coordinates = self.get_relative_coordinates(self.current_angle)
 
 class Playfield:
-
-   EMPTY_BLOCK = "🔳"
-   FULL_BLOCK = "⬜"
    
-   def __init__(self, width: int, height: int) -> None:
+   def __init__(self, width: int, height: int, empty_block :str, full_block :str) -> None:
        self.width = width
        self.height = height
+       self.empty_block = empty_block
+       self.full_block = full_block
        self.grid = self.get_initialized_grid()
 
    def get_block(self, x: int, y: int) -> str:
       return self.grid[self.height - y][x - 1] # Coordinate system with (x,y) = (1,1) as left-bottom corner
 
    def get_initialized_grid(self) -> List:
-      return [[Playfield.EMPTY_BLOCK] * self.width for y in range(self.height)]
+      return [[self.empty_block] * self.width for y in range(self.height)]
 
    def is_block_available(self, x: int, y: int) -> bool:
       # Order is important. First check for the boundaries and later if it is empty
@@ -166,7 +250,7 @@ class Playfield:
       return self.is_block_within_boundaries(x, y) and self.is_block_empty(x, y)
 
    def is_block_empty(self, x: int, y: int) -> bool:
-      return self.get_block(x, y) == Playfield.EMPTY_BLOCK
+      return self.get_block(x, y) == self.empty_block
 
    def is_block_within_boundaries(self, x :int, y: int) -> bool:
       return 1 <= x <= self.width and 1 <= y <= self.height
@@ -184,18 +268,22 @@ class Playfield:
 
 class Tetris:
 
-   FALLING_PIECE_STARTING_X = 5
-   FALLING_PIECE_STARTING_Y = 19
+   def __init__(self, cfg: object) -> None:
+      self.playfield = Playfield(
+         cfg["playfield"]["width"],
+         cfg["playfield"]["height"],
+         cfg["playfield"]["blocks"]["empty_block"],
+         cfg["playfield"]["blocks"]["full_block"])
 
-   def __init__(self) -> None:
-      self.playfield = Playfield(10, 20)
+      self.falling_piece_starting_x = cfg["playfield"]["falling_piece"]["starting_x"]
+      self.falling_piece_starting_y = cfg["playfield"]["falling_piece"]["starting_y"]
 
-      x = Tetris.FALLING_PIECE_STARTING_X
-      y = Tetris.FALLING_PIECE_STARTING_Y
+      x = self.falling_piece_starting_x
+      y = self.falling_piece_starting_y
 
       self.clear_screen()
       self.falling_piece = self.get_next_falling_piece()
-      self.put_falling_piece(Tetris.FALLING_PIECE_STARTING_X, Tetris.FALLING_PIECE_STARTING_Y)
+      self.put_falling_piece(x, y)
       self.playfield.print_grid()
 
       key = "X"
@@ -230,9 +318,9 @@ class Tetris:
          elif key == " ":
             [x, y] = self.drop_falling_piece(x, y)
             self.put_falling_piece(x, y)
-            
-            x = Tetris.FALLING_PIECE_STARTING_X
-            y = Tetris.FALLING_PIECE_STARTING_Y
+
+            x = self.falling_piece_starting_x
+            y = self.falling_piece_starting_y
             self.falling_piece = self.get_next_falling_piece()
 
          self.put_falling_piece(x, y)
@@ -262,10 +350,10 @@ class Tetris:
       )
    
    def put_falling_piece(self, rotation_center_x :int, rotation_center_y :int) -> None:
-      self.set_falling_piece(rotation_center_x, rotation_center_y, Playfield.FULL_BLOCK)  
+      self.set_falling_piece(rotation_center_x, rotation_center_y, self.playfield.full_block)  
 
    def remove_falling_piece(self, rotation_center_x :int, rotation_center_y :int) -> None:
-      self.set_falling_piece(rotation_center_x, rotation_center_y, Playfield.EMPTY_BLOCK)
+      self.set_falling_piece(rotation_center_x, rotation_center_y, self.playfield.empty_block)
 
    def set_falling_piece(self, rotation_center_x :int, rotation_center_y :int, value :str) -> None:
       for relative_x, relative_y in self.falling_piece.current_relative_coordinates:
@@ -276,4 +364,4 @@ class Tetris:
 
 # TODO graphics_board (the real game board)
 # TODO falling_piece to be a class
-Tetris()
+Tetris(config)
