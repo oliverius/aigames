@@ -188,22 +188,23 @@ class Tetris:
    FALLING_PIECE_STARTING_Y = 19
 
    def __init__(self) -> None:
-       self.playfield = Playfield(10, 20)
-       self.falling_piece = self.get_next_falling_piece()
+      self.playfield = Playfield(10, 20)
 
-       x = Tetris.FALLING_PIECE_STARTING_X
-       y = Tetris.FALLING_PIECE_STARTING_Y
+      x = Tetris.FALLING_PIECE_STARTING_X
+      y = Tetris.FALLING_PIECE_STARTING_Y
 
-       self.clear_screen()
-       self.put_falling_piece(x, y)
-       self.playfield.print_grid()
+      self.clear_screen()
+      self.falling_piece = self.get_next_falling_piece()
+      self.put_falling_piece(Tetris.FALLING_PIECE_STARTING_X, Tetris.FALLING_PIECE_STARTING_Y)
+      self.playfield.print_grid()
 
-       key = "X"
-       while (key != ""):
+      key = "X"
+      while (key != ""):
          key = input().upper()
+         
          self.clear_screen()
          self.remove_falling_piece(x, y)
-         
+
          if key == "A":
             if self.can_falling_piece_move(x - 1, y):
                x -= 1            
@@ -226,6 +227,14 @@ class Tetris:
             if not self.can_falling_piece_move(x, y):
                self.falling_piece.rotate_left()
 
+         elif key == " ":
+            [x, y] = self.drop_falling_piece(x, y)
+            self.put_falling_piece(x, y)
+            
+            x = Tetris.FALLING_PIECE_STARTING_X
+            y = Tetris.FALLING_PIECE_STARTING_Y
+            self.falling_piece = self.get_next_falling_piece()
+
          self.put_falling_piece(x, y)
          self.playfield.print_grid()
 
@@ -233,6 +242,11 @@ class Tetris:
       return all([
          self.playfield.is_block_available(rotation_center_x + relative_x, rotation_center_y + relative_y)
          for relative_x, relative_y in self.falling_piece.current_relative_coordinates])
+
+   def drop_falling_piece(self, rotation_center_x :int, rotation_center_y :int) -> List:
+      while self.can_falling_piece_move(rotation_center_x, rotation_center_y - 1):
+         rotation_center_y -= 1
+      return [rotation_center_x, rotation_center_y]
 
    def get_next_falling_piece(self) -> Tetromino:      
       return Tetromino(
@@ -261,4 +275,5 @@ class Tetris:
       os.system('cls' if os.name == 'nt' else 'clear') # TODO remove when we move to TK
 
 # TODO graphics_board (the real game board)
+# TODO falling_piece to be a class
 Tetris()
