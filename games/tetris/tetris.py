@@ -18,18 +18,9 @@ tetrominoes, name and shape (maybe colour as well)
 from enum import Enum, unique
 import random
 import os
-from tkinter import BooleanVar
 from typing import Any, List # TODO remove when we are not dealing with terminals and we move to TK
-# from tkinter import *
-
-# screen = Tk()
-# screen.title("Example with graphics")
-# screen.geometry("500x500")
-# welcome_text = Label(screen, text = "my first one")
-# welcome_text.pack()
-# screen.mainloop()
-
-
+import tkinter as tk
+import tkinter.messagebox as msgbox
 
 @unique
 class TetrominoColor(Enum):
@@ -323,5 +314,47 @@ class TetrisEngine:
       os.system('cls' if os.name == 'nt' else 'clear') # TODO remove when we move to TK
 
 # TODO graphics_board (the real game board)
-# TODO clear lines in playfield
-TetrisEngine(config)
+#TetrisEngine(config)
+
+class Window(tk.Tk):
+   def __init__(self):
+      super().__init__()
+      self.title("AI Games - Tetris")
+      self.geometry("800x600")
+
+      self.label = tk.Label(self, text="Hello world")
+      self.label.pack(fill=tk.BOTH, expand=1, padx=100, pady=50)
+
+      canvas = tk.Canvas(self, bg="grey", width=300, height=300)
+      canvas.pack()
+
+      canvas.create_oval((0,0,300,300), fill="yellow")
+      canvas.create_rectangle((10,10,50,50), fill="red")
+
+      hello_button = tk.Button(self, text="say hello",command=self.say_hello)
+      hello_button.pack(side=tk.LEFT, padx=(20,0), pady=(0,20))
+
+      exit_button = tk.Button(self, text="Exit", command=self.exit)
+      exit_button.pack(side=tk.RIGHT, padx=(20,0), pady=(0,20))
+
+      self.playfield_screen = Playfield_Screen(self, bg="green")
+      self.playfield_screen.pack(side=tk.TOP, anchor=tk.N)
+
+   def say_hello(self):
+      msgbox.showinfo("hello", "hello world")
+
+   def exit(self):
+      self.destroy()
+
+class Playfield_Screen(tk.Canvas):
+   def __init__(self, master, **kwargs):
+      super().__init__(master, **kwargs)
+
+
+
+if __name__ == "__main__":
+   window = Window()
+   window.mainloop()
+
+
+
