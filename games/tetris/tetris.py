@@ -146,17 +146,15 @@ class Playfield:
        self.grid = [[self.empty_block] * self.width for y in range(self.height)]
 
    def clear_full_lines(self) -> None:
-      lines = []
-      # From the bottom of the playfield to the top
-      # i.e. last element in grid[y] to the first one
-      # for y in range(self.height - 1, -1, -1):
-      #    if all(block != self.empty_block for block in self.grid[y]):
-      #       self.grid[y].pop()
-      #       lines += 1
+      # It is difficult to remove elements (full lines) from a grid
+      # It is safer to create a new grid without those full lines
+      # and later add empty lines at the top to replace the full lines removed
       full_line = [self.full_block] * self.width
       new_grid = [ self.grid[y].copy() for y in range(self.height) if self.grid[y] != full_line ]
-      lines_cleared = self.height - len(new_grid) # because we didn't copy the ones that are full
-      print(lines_cleared)
+      lines_cleared = self.height - len(new_grid)
+      for _ in range(lines_cleared):
+         new_grid.insert(0, [self.empty_block] * self.width)
+      self.grid = new_grid
 
    def get_block(self, x: int, y: int) -> str:
       return self.grid[self.height - y][x - 1] # Coordinate system with (x,y) = (1,1) as left-bottom corner
