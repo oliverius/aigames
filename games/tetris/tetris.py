@@ -143,13 +143,23 @@ class Playfield:
        self.height = height
        self.empty_block = empty_block
        self.full_block = full_block
-       self.grid = self.get_initialized_grid()
+       self.grid = [[self.empty_block] * self.width for y in range(self.height)]
+
+   def clear_full_lines(self) -> None:
+      lines = []
+      # From the bottom of the playfield to the top
+      # i.e. last element in grid[y] to the first one
+      # for y in range(self.height - 1, -1, -1):
+      #    if all(block != self.empty_block for block in self.grid[y]):
+      #       self.grid[y].pop()
+      #       lines += 1
+      full_line = [self.full_block] * self.width
+      new_grid = [ self.grid[y].copy() for y in range(self.height) if self.grid[y] != full_line ]
+      lines_cleared = self.height - len(new_grid) # because we didn't copy the ones that are full
+      print(lines_cleared)
 
    def get_block(self, x: int, y: int) -> str:
       return self.grid[self.height - y][x - 1] # Coordinate system with (x,y) = (1,1) as left-bottom corner
-
-   def get_initialized_grid(self) -> List:
-      return [[self.empty_block] * self.width for y in range(self.height)]
 
    def is_block_available(self, x: int, y: int) -> bool:
       # Order is important. First check for the boundaries and later if it is empty
@@ -209,7 +219,7 @@ class Falling_Piece:
       self.angle = 0
       self.relative_coordinates = self.get_relative_coordinates(self.angle)
 
-class Tetris:
+class TetrisEngine:
 
    def __init__(self, cfg: object) -> None:
       self.playfield = Playfield(
@@ -217,13 +227,12 @@ class Tetris:
          cfg["playfield"]["height"],
          cfg["playfield"]["blocks"]["empty_block"],
          cfg["playfield"]["blocks"]["full_block"])
-
-      next_shape = self.get_next_shape()
-      self.falling_piece = Falling_Piece(next_shape, cfg["tetrominoes"])
       
       self.falling_piece_starting_x = cfg["playfield"]["falling_piece"]["starting_x"]
       self.falling_piece_starting_y = cfg["playfield"]["falling_piece"]["starting_y"]
 
+      next_shape = self.get_next_shape()
+      self.falling_piece = Falling_Piece(next_shape, cfg["tetrominoes"])
       x = self.falling_piece_starting_x
       y = self.falling_piece_starting_y
 
@@ -231,6 +240,7 @@ class Tetris:
       self.put_falling_piece(x, y)
       self.playfield.print_grid()
 
+      set_falling_piece_and_get_next = False
       key = "X"
       while (key != ""):
          key = input().upper()
@@ -249,6 +259,8 @@ class Tetris:
          elif key == "S":
             if self.can_falling_piece_move(x, y - 1):
                y -= 1
+            else:
+               set_falling_piece_and_get_next = True
 
          elif key == "K":
             self.falling_piece.rotate_left()
@@ -262,12 +274,17 @@ class Tetris:
 
          elif key == " ":
             [x, y] = self.drop_falling_piece(x, y)
-            self.put_falling_piece(x, y)
+            set_falling_piece_and_get_next = True
 
-            x = self.falling_piece_starting_x
-            y = self.falling_piece_starting_y
+         if set_falling_piece_and_get_next:
+            self.put_falling_piece(x, y)
             next_shape = self.get_next_shape()
             self.falling_piece.set_shape(next_shape)
+            x = self.falling_piece_starting_x
+            y = self.falling_piece_starting_y
+            self.playfield.clear_full_lines()
+
+            set_falling_piece_and_get_next = False
 
          self.put_falling_piece(x, y)
          self.playfield.print_grid()
@@ -275,7 +292,8 @@ class Tetris:
    def can_falling_piece_move(self, center_x :int, center_y :int) -> bool:
       return all([
          self.playfield.is_block_available(x, y)
-         for x, y in self.falling_piece.get_absolute_coordinates(center_x, center_y)])
+         for x, y in self.falling_piece.get_absolute_coordinates(center_x, center_y)
+      ]) 
 
    def drop_falling_piece(self, center_x :int, center_y :int) -> List:
       while self.can_falling_piece_move(center_x, center_y - 1):
@@ -308,5 +326,4 @@ class Tetris:
 
 # TODO graphics_board (the real game board)
 # TODO clear lines in playfield
-# TODO get absolute coordinates in Falling_Piece and modify methods that have relative coordinates
-Tetris(config)
+TetrisEngine(config)
