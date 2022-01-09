@@ -313,7 +313,6 @@ class TetrisEngine:
    def clear_screen(self) -> None:
       os.system('cls' if os.name == 'nt' else 'clear') # TODO remove when we move to TK
 
-# TODO graphics_board (the real game board)
 #TetrisEngine(config)
 
 class Window(tk.Tk):
@@ -322,22 +321,16 @@ class Window(tk.Tk):
       self.title("AI Games - Tetris")
       self.geometry("800x600")
 
-      self.label = tk.Label(self, text="Hello world")
-      self.label.pack(fill=tk.BOTH, expand=1, padx=100, pady=50)
+      # self.label = tk.Label(self, text="Hello world")
+      # self.label.pack(side=tk.LEFT, expand=1, padx=100, pady=50)
 
-      canvas = tk.Canvas(self, bg="grey", width=300, height=300)
-      canvas.pack()
-
-      canvas.create_oval((0,0,300,300), fill="yellow")
-      canvas.create_rectangle((10,10,50,50), fill="red")
-
-      hello_button = tk.Button(self, text="say hello",command=self.say_hello)
-      hello_button.pack(side=tk.LEFT, padx=(20,0), pady=(0,20))
+      # hello_button = tk.Button(self, text="say hello",command=self.say_hello)
+      # hello_button.pack(side=tk.LEFT, padx=(20,0), pady=(0,20))
 
       exit_button = tk.Button(self, text="Exit", command=self.exit)
       exit_button.pack(side=tk.RIGHT, padx=(20,0), pady=(0,20))
 
-      self.playfield_screen = Playfield_Screen(self, bg="green")
+      self.playfield_screen = Playfield_Screen(self)
       self.playfield_screen.pack(side=tk.TOP, anchor=tk.N)
 
    def say_hello(self):
@@ -348,9 +341,40 @@ class Window(tk.Tk):
 
 class Playfield_Screen(tk.Canvas):
    def __init__(self, master, **kwargs):
-      super().__init__(master, **kwargs)
+      self.width = 250
+      self.height = 500
+      self.background = "#E8E8E8"
+      super().__init__(master, width=self.width, height=self.height, bg=self.background, **kwargs)
 
+      self.grid_x0 = 4
+      self.grid_y0 = 4
+      self.grid_width = 10
+      self.grid_height = 20
+      self.well_border_width = 2
+      self.block_length = 20
+      self.block_length_gap = 5
 
+      self.draw()
+
+   def draw(self) -> None:
+      # TODO erase all before every frame
+      self.draw_well()
+      self.draw_grid()
+
+   def draw_block(self, grid_x :int, grid_y :int) -> None:
+      x = self.grid_x0 + grid_x * (self.block_length + self.block_length_gap)
+      y = self.grid_x0 + grid_y * (self.block_length + self.block_length_gap)
+      self.create_rectangle( (x, y, x + self.block_length, y + self.block_length), outline="black", fill="#E8E8E8")
+
+   def draw_grid(self) -> None:
+      for y in range(self.grid_height):
+         for x in range(self.grid_width):
+            self.draw_block(x, y)
+
+   def draw_well(self):
+      self.create_line(3, 0, 3, self.height, width=self.well_border_width, fill="black") # TODO why not 0 instead of 3 pixels to the right?
+      self.create_line(0, self.height, self.width, self.height, width=self.well_border_width, fill="black")
+      self.create_line(self.width, self.height, self.width, 0, width=self.well_border_width, fill="black")
 
 if __name__ == "__main__":
    window = Window()
