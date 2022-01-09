@@ -11,8 +11,6 @@ https://en.wikipedia.org/wiki/Tetromino
 https://tetris.fandom.com/wiki/SRS
 https://tetris.fandom.com/wiki/Tetris_Guideline
 
-tetrominoes, name and shape (maybe colour as well)
-
 """
 
 from enum import Enum, unique
@@ -35,14 +33,14 @@ class TetrominoColor(Enum):
 
 @unique
 class TetrominoShape(Enum):
-   NONE = 0
-   I_SHAPE = 1
-   J_SHAPE = 2
-   L_SHAPE = 3
-   O_SHAPE = 4
-   S_SHAPE = 5
-   T_SHAPE = 6
-   Z_SHAPE = 7
+   NONE = " "
+   I_SHAPE = "I"
+   J_SHAPE = "J"
+   L_SHAPE = "L"
+   O_SHAPE = "O"
+   S_SHAPE = "S"
+   T_SHAPE = "T"
+   Z_SHAPE = "Z"
 
 config = {
    # Based on https://tetris.fandom.com/wiki/SRS
@@ -223,63 +221,6 @@ class TetrisEngine:
       self.updatePlayfieldHandler = updatePlayfieldHandler
       next_shape = self.get_next_shape()
       self.falling_piece = Falling_Piece(next_shape, cfg["tetrominoes"])
-      # x = self.falling_piece_starting_x
-      # y = self.falling_piece_starting_y
-
-      # self.clear_screen()
-      # self.put_falling_piece(x, y)
-      # self.playfield.print_grid()
-
-      # set_falling_piece_and_get_next = False
-      # key = "X"
-      # while (key != ""):
-      #    key = input().upper()
-         
-      #    self.clear_screen()
-      #    self.remove_falling_piece(x, y)
-
-      #    if key == "A":
-      #       if self.can_falling_piece_move(x - 1, y):
-      #          x -= 1            
-
-      #    elif key == "D":
-      #       if self.can_falling_piece_move(x + 1, y):
-      #          x += 1
-
-      #    elif key == "S":
-      #       if self.can_falling_piece_move(x, y - 1):
-      #          y -= 1
-      #       else:
-      #          set_falling_piece_and_get_next = True
-
-      #    elif key == "K":
-      #       self.falling_piece.rotate_left()
-      #       if not self.can_falling_piece_move(x, y):
-      #          self.falling_piece.rotate_right()
-
-      #    elif key == "L":
-      #       self.falling_piece.rotate_right()
-      #       if not self.can_falling_piece_move(x, y):
-      #          self.falling_piece.rotate_left()
-
-      #    elif key == " ":
-      #       [x, y] = self.drop_falling_piece(x, y)
-      #       set_falling_piece_and_get_next = True
-
-      #    if set_falling_piece_and_get_next:
-      #       self.put_falling_piece(x, y)
-      #       next_shape = self.get_next_shape()
-      #       self.falling_piece.set_shape(next_shape)
-      #       x = self.falling_piece_starting_x
-      #       y = self.falling_piece_starting_y
-      #       self.playfield.clear_full_lines()
-
-      #       set_falling_piece_and_get_next = False
-
-      #    self.put_falling_piece(x, y)
-      #    self.playfield.print_grid()
-
-      #    updatePlayfieldHandler(self.playfield.grid) # TODO make it with events
 
    def can_falling_piece_move(self, center_x :int, center_y :int) -> bool:
       return all([
