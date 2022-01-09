@@ -210,7 +210,7 @@ class Falling_Piece:
 
 class TetrisEngine:
 
-   def __init__(self, cfg: object) -> None:
+   def __init__(self, cfg: object, updatePlayfieldHandler :object) -> None:
       self.playfield = Playfield(
          cfg["playfield"]["width"],
          cfg["playfield"]["height"],
@@ -220,8 +220,96 @@ class TetrisEngine:
       self.falling_piece_starting_x = cfg["playfield"]["falling_piece"]["starting_x"]
       self.falling_piece_starting_y = cfg["playfield"]["falling_piece"]["starting_y"]
 
+      self.updatePlayfieldHandler = updatePlayfieldHandler
       next_shape = self.get_next_shape()
       self.falling_piece = Falling_Piece(next_shape, cfg["tetrominoes"])
+      # x = self.falling_piece_starting_x
+      # y = self.falling_piece_starting_y
+
+      # self.clear_screen()
+      # self.put_falling_piece(x, y)
+      # self.playfield.print_grid()
+
+      # set_falling_piece_and_get_next = False
+      # key = "X"
+      # while (key != ""):
+      #    key = input().upper()
+         
+      #    self.clear_screen()
+      #    self.remove_falling_piece(x, y)
+
+      #    if key == "A":
+      #       if self.can_falling_piece_move(x - 1, y):
+      #          x -= 1            
+
+      #    elif key == "D":
+      #       if self.can_falling_piece_move(x + 1, y):
+      #          x += 1
+
+      #    elif key == "S":
+      #       if self.can_falling_piece_move(x, y - 1):
+      #          y -= 1
+      #       else:
+      #          set_falling_piece_and_get_next = True
+
+      #    elif key == "K":
+      #       self.falling_piece.rotate_left()
+      #       if not self.can_falling_piece_move(x, y):
+      #          self.falling_piece.rotate_right()
+
+      #    elif key == "L":
+      #       self.falling_piece.rotate_right()
+      #       if not self.can_falling_piece_move(x, y):
+      #          self.falling_piece.rotate_left()
+
+      #    elif key == " ":
+      #       [x, y] = self.drop_falling_piece(x, y)
+      #       set_falling_piece_and_get_next = True
+
+      #    if set_falling_piece_and_get_next:
+      #       self.put_falling_piece(x, y)
+      #       next_shape = self.get_next_shape()
+      #       self.falling_piece.set_shape(next_shape)
+      #       x = self.falling_piece_starting_x
+      #       y = self.falling_piece_starting_y
+      #       self.playfield.clear_full_lines()
+
+      #       set_falling_piece_and_get_next = False
+
+      #    self.put_falling_piece(x, y)
+      #    self.playfield.print_grid()
+
+      #    updatePlayfieldHandler(self.playfield.grid) # TODO make it with events
+
+   def can_falling_piece_move(self, center_x :int, center_y :int) -> bool:
+      return all([
+         self.playfield.is_block_available(x, y)
+         for x, y in self.falling_piece.get_absolute_coordinates(center_x, center_y)
+      ]) 
+
+   def drop_falling_piece(self, center_x :int, center_y :int) -> List:
+      while self.can_falling_piece_move(center_x, center_y - 1):
+         center_y -= 1
+      return [center_x, center_y]
+
+   def get_next_shape(self) -> TetrominoShape:
+      return random.choice([
+         TetrominoShape.I_SHAPE,
+         TetrominoShape.J_SHAPE,
+         TetrominoShape.L_SHAPE,
+         TetrominoShape.O_SHAPE,
+         TetrominoShape.S_SHAPE,
+         TetrominoShape.T_SHAPE,
+         TetrominoShape.Z_SHAPE
+      ])
+   
+   def put_falling_piece(self, center_x :int, center_y :int) -> None:
+      self.set_falling_piece(center_x, center_y, self.playfield.full_block)  
+
+   def remove_falling_piece(self, center_x :int, center_y :int) -> None:
+      self.set_falling_piece(center_x, center_y, self.playfield.empty_block)
+
+   def run(self):      
       x = self.falling_piece_starting_x
       y = self.falling_piece_starting_y
 
@@ -278,33 +366,7 @@ class TetrisEngine:
          self.put_falling_piece(x, y)
          self.playfield.print_grid()
 
-   def can_falling_piece_move(self, center_x :int, center_y :int) -> bool:
-      return all([
-         self.playfield.is_block_available(x, y)
-         for x, y in self.falling_piece.get_absolute_coordinates(center_x, center_y)
-      ]) 
-
-   def drop_falling_piece(self, center_x :int, center_y :int) -> List:
-      while self.can_falling_piece_move(center_x, center_y - 1):
-         center_y -= 1
-      return [center_x, center_y]
-
-   def get_next_shape(self) -> TetrominoShape:
-      return random.choice([
-         TetrominoShape.I_SHAPE,
-         TetrominoShape.J_SHAPE,
-         TetrominoShape.L_SHAPE,
-         TetrominoShape.O_SHAPE,
-         TetrominoShape.S_SHAPE,
-         TetrominoShape.T_SHAPE,
-         TetrominoShape.Z_SHAPE
-      ])
-   
-   def put_falling_piece(self, center_x :int, center_y :int) -> None:
-      self.set_falling_piece(center_x, center_y, self.playfield.full_block)  
-
-   def remove_falling_piece(self, center_x :int, center_y :int) -> None:
-      self.set_falling_piece(center_x, center_y, self.playfield.empty_block)
+         self.updatePlayfieldHandler(self.playfield.grid) # TODO make it with events
 
    def set_falling_piece(self, center_x :int, center_y :int, value :str) -> None:
       for x, y in self.falling_piece.get_absolute_coordinates(center_x, center_y):
@@ -312,8 +374,6 @@ class TetrisEngine:
    
    def clear_screen(self) -> None:
       os.system('cls' if os.name == 'nt' else 'clear') # TODO remove when we move to TK
-
-#TetrisEngine(config)
 
 class Window(tk.Tk):
    def __init__(self):
@@ -324,20 +384,23 @@ class Window(tk.Tk):
       # self.label = tk.Label(self, text="Hello world")
       # self.label.pack(side=tk.LEFT, expand=1, padx=100, pady=50)
 
-      # hello_button = tk.Button(self, text="say hello",command=self.say_hello)
-      # hello_button.pack(side=tk.LEFT, padx=(20,0), pady=(0,20))
-
       exit_button = tk.Button(self, text="Exit", command=self.exit)
-      exit_button.pack(side=tk.RIGHT, padx=(20,0), pady=(0,20))
+      exit_button.pack(side=tk.BOTTOM, padx=(20,0), pady=(0,20))
 
       self.playfield_screen = Playfield_Screen(self)
       self.playfield_screen.pack(side=tk.TOP, anchor=tk.N)
+
+      tetris_engine = TetrisEngine(config, self.test_event) # This will play in the command line while we refresh the graphical one
+      tetris_engine.run()
 
    def say_hello(self):
       msgbox.showinfo("hello", "hello world")
 
    def exit(self):
       self.destroy()
+
+   def test_event(self, tetris_engine_playfield_grid :list):
+      self.playfield_screen.draw(tetris_engine_playfield_grid)
 
 class Playfield_Screen(tk.Canvas):
    def __init__(self, master, **kwargs):
@@ -354,22 +417,31 @@ class Playfield_Screen(tk.Canvas):
       self.block_length = 20
       self.block_length_gap = 5
 
-      self.draw()
+      #self.draw()
 
-   def draw(self) -> None:
-      # TODO erase all before every frame
+   def draw(self, grid :list) -> None:
+      # TODO erase all before every frame. Read this https://stackoverflow.com/a/15840231
+      # Probably better just changing color of blocks if they are different from before?
+      # Need to have a copy of previous playfield, or just check colors of what we have in the current grid internally?
+      # For now I will erase all
+      self.delete("all")
       self.draw_well()
-      self.draw_grid()
+      self.draw_grid(grid)
 
-   def draw_block(self, grid_x :int, grid_y :int) -> None:
+   def draw_block(self, grid_x :int, grid_y :int, color) -> None:
       x = self.grid_x0 + grid_x * (self.block_length + self.block_length_gap)
       y = self.grid_x0 + grid_y * (self.block_length + self.block_length_gap)
-      self.create_rectangle( (x, y, x + self.block_length, y + self.block_length), outline="black", fill="#E8E8E8")
+      if color == config["playfield"]["blocks"]["empty_block"]: # TODO not hardcoded and also need different colors
+         fill_color = "#E8E8E8"
+      else:
+         fill_color = "red"
+      self.create_rectangle( (x, y, x + self.block_length, y + self.block_length), outline="black", fill=fill_color)
 
-   def draw_grid(self) -> None:
+   def draw_grid(self, grid :list) -> None:
       for y in range(self.grid_height):
          for x in range(self.grid_width):
-            self.draw_block(x, y)
+            color = grid[y][x]
+            self.draw_block(x, y, color)
 
    def draw_well(self):
       self.create_line(3, 0, 3, self.height, width=self.well_border_width, fill="black") # TODO why not 0 instead of 3 pixels to the right?
