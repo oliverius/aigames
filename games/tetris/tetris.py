@@ -33,6 +33,8 @@ class TetrominoColor(Enum):
 
 @unique
 class TetrominoShape(Enum):
+   def __str__(self) -> str:
+       return self.value
    NONE = " "
    I_SHAPE = "I"
    J_SHAPE = "J"
@@ -119,54 +121,66 @@ config = {
          "starting_y": 19
       },
       "blocks": {
-          "empty_block": "🔳",
-          "full_block" : "⬜"
+         "full_block" : "⬜"
       }
    }
 }
 
 class Playfield:
    
-   def __init__(self, width: int, height: int, empty_block :str, full_block :str) -> None:
+   def __init__(self, width: int, height: int, full_block :str) -> None:
        self.width = width
        self.height = height
-       self.empty_block = empty_block
        self.full_block = full_block
-       self.grid = [[self.empty_block] * self.width for y in range(self.height)]
+       self.grid = [[TetrominoShape.NONE] * self.width for y in range(self.height)]
 
    def clear_full_lines(self) -> None:
-      # It is difficult to remove elements (full lines) from a grid
-      # It is safer to create a new grid without those full lines
-      # and later add empty lines at the top to replace the full lines removed
+      """
+      It is difficult to remove elements (full lines) from a grid.
+      It is safer to create a new grid without those full lines
+      and later add empty lines at the top to replace the full lines removed
+      """
       full_line = [self.full_block] * self.width
       new_grid = [ self.grid[y].copy() for y in range(self.height) if self.grid[y] != full_line ]
       lines_cleared = self.height - len(new_grid)
       for _ in range(lines_cleared):
-         new_grid.insert(0, [self.empty_block] * self.width)
+         new_grid.insert(0, [TetrominoShape.NONE] * self.width)
       self.grid = new_grid
 
    def get_block(self, x: int, y: int) -> str:
-      return self.grid[self.height - y][x - 1] # Coordinate system with (x,y) = (1,1) as left-bottom corner
+      """
+      Coordinate system with (x,y) = (1,1) as left-bottom corner
+      """
+      return self.grid[self.height - y][x - 1]
 
    def is_block_available(self, x: int, y: int) -> bool:
-      # Order is important. First check for the boundaries and later if it is empty
-      # If we do the opposite we may check for a (x,y) that doesn't exist and will error
+      """
+      Order is important. First check for the boundaries and later if it is empty.
+      If we do the opposite we may check for a (x,y) that doesn't exist and will error
+      """
       return self.is_block_within_boundaries(x, y) and self.is_block_empty(x, y)
 
    def is_block_empty(self, x: int, y: int) -> bool:
-      return self.get_block(x, y) == self.empty_block
+      return self.get_block(x, y) == TetrominoShape.NONE
 
    def is_block_within_boundaries(self, x :int, y: int) -> bool:
       return 1 <= x <= self.width and 1 <= y <= self.height
 
    def set_block(self, x: int, y: int, value) -> None:
-      self.grid[self.height - y][x - 1] = value # Coordinate system with (x,y) = (1,1) as left-bottom corner
+      """
+      Coordinate system with (x,y) = (1,1) as left-bottom corner
+      """
+      self.grid[self.height - y][x - 1] = value
 
    def print_grid(self): # TODO remove this function when we do graphical grid
       printed_grid = ""
       for y in range(self.height):
          for x in range(self.width):
-            printed_grid += str(self.grid[y][x]) + " "
+            if str(self.grid[y][x]) == " ":
+               c = "🔳"
+            else:
+               c = str(self.grid[y][x])
+            printed_grid = printed_grid + c + " "
          printed_grid += "\n"
       print(printed_grid)
 
@@ -212,7 +226,6 @@ class TetrisEngine:
       self.playfield = Playfield(
          cfg["playfield"]["width"],
          cfg["playfield"]["height"],
-         cfg["playfield"]["blocks"]["empty_block"],
          cfg["playfield"]["blocks"]["full_block"])
       
       self.falling_piece_starting_x = cfg["playfield"]["falling_piece"]["starting_x"]
@@ -248,7 +261,7 @@ class TetrisEngine:
       self.set_falling_piece(center_x, center_y, self.playfield.full_block)  
 
    def remove_falling_piece(self, center_x :int, center_y :int) -> None:
-      self.set_falling_piece(center_x, center_y, self.playfield.empty_block)
+      self.set_falling_piece(center_x, center_y, TetrominoShape.NONE)
 
    def run(self):      
       x = self.falling_piece_starting_x
@@ -369,20 +382,20 @@ class Playfield_Screen(tk.Canvas):
       self.draw_well()
       self.draw_grid(grid)
 
-   def draw_block(self, grid_x :int, grid_y :int, color) -> None:
+   def draw_block(self, grid_x :int, grid_y :int, shape) -> None:
       x = self.grid_x0 + grid_x * (self.block_length + self.block_length_gap)
       y = self.grid_x0 + grid_y * (self.block_length + self.block_length_gap)
-      if color == config["playfield"]["blocks"]["empty_block"]: # TODO not hardcoded and also need different colors
-         fill_color = "#E8E8E8"
+      if shape == TetrominoShape.NONE: # TODO not hardcoded and also need different colors
+         color = "#E8E8E8"
       else:
-         fill_color = "red"
-      self.create_rectangle( (x, y, x + self.block_length, y + self.block_length), outline="black", fill=fill_color)
+         color = "red"
+      self.create_rectangle( (x, y, x + self.block_length, y + self.block_length), outline="black", fill=color)
 
    def draw_grid(self, grid :list) -> None:
       for y in range(self.grid_height):
          for x in range(self.grid_width):
-            color = grid[y][x]
-            self.draw_block(x, y, color)
+            shape = grid[y][x]
+            self.draw_block(x, y, shape)
 
    def draw_well(self):
       self.create_line(3, 0, 3, self.height, width=self.well_border_width, fill="black") # TODO why not 0 instead of 3 pixels to the right?
