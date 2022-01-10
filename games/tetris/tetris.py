@@ -9,7 +9,6 @@ https://tetris.fandom.com/wiki/Tetris_Guideline
 
 from enum import Enum, unique
 import random
-import os
 from typing import Any, List # TODO remove when we are not dealing with terminals and we move to TK
 import tkinter as tk
 
@@ -111,6 +110,7 @@ config = {
    "playfield": {
       "width": 10,
       "height": 20,
+      "background_color": "grey",
       "falling_piece": {
          "starting_x": 5,
          "starting_y": 19
@@ -140,10 +140,7 @@ class Playfield:
       self.grid = new_grid
 
    def get_block(self, x: int, y: int) -> str:
-      """
-      Coordinate system with (x,y) = (1,1) as left-bottom corner
-      """
-      return self.grid[self.height - y][x - 1]
+      return self.grid[self.height - y][x - 1] # Coordinate system with (x,y) = (1,1) as left-bottom corner
 
    def is_block_available(self, x: int, y: int) -> bool:
       """
@@ -159,32 +156,14 @@ class Playfield:
       return 1 <= x <= self.width and 1 <= y <= self.height
 
    def set_block(self, x: int, y: int, shape: TetrominoShape) -> None:
-      """
-      Coordinate system with (x,y) = (1,1) as left-bottom corner
-      """
-      self.grid[self.height - y][x - 1] = str(shape)
-
-   def print_grid(self): # TODO remove this function when we do graphical grid
-      printed_grid = ""
-      for y in range(self.height):
-         for x in range(self.width):
-            if str(self.grid[y][x]) == " ":
-               c = "🔳"
-            else:
-               c = "⬜"
-            printed_grid = printed_grid + c + " "
-         printed_grid += "\n"
-      print(printed_grid)
+      self.grid[self.height - y][x - 1] = str(shape) # Coordinate system with (x,y) = (1,1) as left-bottom corner
 
 class Falling_Piece:
 
    def __init__(self, shape :TetrominoShape, tetrominoes_data :list) -> None:
-      self.center_x = 0
-      self.center_y = 0
-      
       self.tetrominoes_data = tetrominoes_data
-
       self.set_shape(shape)
+      self.set_starting_position()
 
    def get_absolute_coordinates(self, center_x :int, center_y :int):
       return [ [center_x + relative_x, center_y + relative_y] for relative_x, relative_y in self.relative_coordinates]
@@ -212,18 +191,17 @@ class Falling_Piece:
       self.angle = 0
       self.relative_coordinates = self.get_relative_coordinates(self.angle)
 
+   def set_starting_position(self) -> None:
+      self.center_x = config["playfield"]["falling_piece"]["starting_x"]
+      self.center_y = config["playfield"]["falling_piece"]["starting_y"]
+
 class TetrisEngine:
 
    def __init__(self, cfg: object) -> None:
       self.playfield = Playfield(cfg["playfield"]["width"], cfg["playfield"]["height"])
       
-      self.falling_piece_starting_x = cfg["playfield"]["falling_piece"]["starting_x"]
-      self.falling_piece_starting_y = cfg["playfield"]["falling_piece"]["starting_y"]
-      
       next_shape = self.get_next_shape()
       self.falling_piece = Falling_Piece(next_shape, cfg["tetrominoes"])
-      self.falling_piece.center_x = self.falling_piece_starting_x
-      self.falling_piece.center_y = self.falling_piece_starting_y
 
       self.events = {
          "keyboard_event": object # TODO one before clear lines and one after
@@ -234,6 +212,20 @@ class TetrisEngine:
          self.playfield.is_block_available(x, y)
          for x, y in self.falling_piece.get_absolute_coordinates(center_x, center_y)
       ]) 
+
+   def drop(self) -> None:
+      self.remove_falling_piece()
+      
+      while self.can_falling_piece_move(self.falling_piece.center_x, self.falling_piece.center_y - 1):
+         self.falling_piece.center_y -= 1
+      self.put_falling_piece()
+      next_shape = self.get_next_shape()
+      self.falling_piece.set_shape(next_shape)
+      self.falling_piece.set_starting_position()
+      self.playfield.clear_full_lines()
+      
+      self.put_falling_piece()
+      self.raise_keyboard_event()
 
    def get_next_shape(self) -> TetrominoShape:
       return random.choice([
@@ -246,6 +238,21 @@ class TetrisEngine:
          TetrominoShape.Z_SHAPE
       ])
    
+   def move_down(self) -> None:
+      self.remove_falling_piece()
+      
+      if self.can_falling_piece_move(self.falling_piece.center_x, self.falling_piece.center_y - 1):
+         self.falling_piece.center_y -= 1
+      else:
+         self.put_falling_piece()
+         next_shape = self.get_next_shape()
+         self.falling_piece.set_shape(next_shape)
+         self.falling_piece.set_starting_position()
+         self.playfield.clear_full_lines()
+      
+      self.put_falling_piece()
+      self.raise_keyboard_event()
+
    def move_left(self) -> None:
       self.remove_falling_piece()
 
@@ -260,37 +267,6 @@ class TetrisEngine:
       
       if self.can_falling_piece_move(self.falling_piece.center_x + 1, self.falling_piece.center_y):
          self.falling_piece.center_x += 1 
-      
-      self.put_falling_piece()
-      self.raise_keyboard_event()
-
-   def move_down(self) -> None:
-      self.remove_falling_piece()
-      
-      if self.can_falling_piece_move(self.falling_piece.center_x, self.falling_piece.center_y - 1):
-         self.falling_piece.center_y -= 1
-      else:
-         self.put_falling_piece()
-         next_shape = self.get_next_shape()
-         self.falling_piece.set_shape(next_shape)
-         self.falling_piece.center_x = self.falling_piece_starting_x
-         self.falling_piece.center_y = self.falling_piece_starting_y
-         self.playfield.clear_full_lines()
-      
-      self.put_falling_piece()
-      self.raise_keyboard_event()
-
-   def drop(self) -> None: # TODO place the method alphabetically
-      self.remove_falling_piece()
-      
-      while self.can_falling_piece_move(self.falling_piece.center_x, self.falling_piece.center_y - 1):
-         self.falling_piece.center_y -= 1
-      self.put_falling_piece()
-      next_shape = self.get_next_shape()
-      self.falling_piece.set_shape(next_shape)
-      self.falling_piece.center_x = self.falling_piece_starting_x
-      self.falling_piece.center_y = self.falling_piece_starting_y
-      self.playfield.clear_full_lines()
       
       self.put_falling_piece()
       self.raise_keyboard_event()
@@ -389,9 +365,9 @@ class Window(tk.Tk):
 
 class Playfield_Screen(tk.Canvas):
    def __init__(self, master, **kwargs):
-      self.width = 250
-      self.height = 500
-      self.background = TetrominoColor.NONE
+      self.width = 224
+      self.height = 444
+      self.background = config["playfield"]["background_color"]
       super().__init__(master, width=self.width, height=self.height, bg=self.background, **kwargs)
 
       self.grid_width = 10
@@ -401,7 +377,7 @@ class Playfield_Screen(tk.Canvas):
       self.grid_y0 = 4
       self.well_border_width = 2
       self.block_length = 20
-      self.block_length_gap = 5
+      self.block_length_gap = 2
       
       self.build_color_dictionary()
       self.draw_blank_grid()
