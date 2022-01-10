@@ -214,15 +214,18 @@ class Falling_Piece:
 
 class TetrisEngine:
 
-   def __init__(self, cfg: object, updatePlayfieldHandler :object) -> None:
+   def __init__(self, cfg: object) -> None:
       self.playfield = Playfield(cfg["playfield"]["width"], cfg["playfield"]["height"])
       
       self.falling_piece_starting_x = cfg["playfield"]["falling_piece"]["starting_x"]
       self.falling_piece_starting_y = cfg["playfield"]["falling_piece"]["starting_y"]
-
-      self.updatePlayfieldHandler = updatePlayfieldHandler
+      
       next_shape = self.get_next_shape()
       self.falling_piece = Falling_Piece(next_shape, cfg["tetrominoes"])
+
+      self.events = {
+         "keyboard_event": object # TODO one before clear lines and one after
+      }
 
    def can_falling_piece_move(self, center_x :int, center_y :int) -> bool:
       return all([
@@ -251,6 +254,9 @@ class TetrisEngine:
 
    def remove_falling_piece(self, center_x :int, center_y :int) -> None:
       self.set_falling_piece(center_x, center_y, TetrominoShape.NONE)
+
+   def raise_keyboard_event(self) -> None:
+      self.events["keyboard_event"](self.playfield.grid)
 
    def run(self):      
       x = self.falling_piece_starting_x
@@ -309,7 +315,11 @@ class TetrisEngine:
          self.put_falling_piece(x, y)
          self.playfield.print_grid()
 
-         self.updatePlayfieldHandler(self.playfield.grid) # TODO make it with events
+         self.raise_keyboard_event()
+         #self.updatePlayfieldHandler(self.playfield.grid) # TODO make it with events
+
+   def set_event_handler(self, event_name :str, function :object) -> None:
+      self.events[event_name] = function
 
    def set_falling_piece(self, center_x :int, center_y :int, shape :TetrominoShape) -> None:
       for x, y in self.falling_piece.get_absolute_coordinates(center_x, center_y):
@@ -333,10 +343,12 @@ class Window(tk.Tk):
       self.playfield_screen = Playfield_Screen(self)
       self.playfield_screen.pack(side=tk.TOP, anchor=tk.N)
 
-      self.tetris_engine = TetrisEngine(config, self.test_event) # This will play in the command line while we refresh the graphical one
+      self.tetris_engine = TetrisEngine(config)
+      self.tetris_engine.set_event_handler("keyboard_event", self.test_event)
+      
       self.tetris_engine.run()
 
-   def print_grid(self):     
+   def print_grid(self):
       printed_grid = ""
       for y in range(self.tetris_engine.playfield.height):
          for x in range(self.tetris_engine.playfield.width):
@@ -357,10 +369,11 @@ class Playfield_Screen(tk.Canvas):
       self.background = TetrominoColor.NONE
       super().__init__(master, width=self.width, height=self.height, bg=self.background, **kwargs)
 
-      self.grid_x0 = 4
-      self.grid_y0 = 4
       self.grid_width = 10
       self.grid_height = 20
+
+      self.grid_x0 = 4
+      self.grid_y0 = 4
       self.well_border_width = 2
       self.block_length = 20
       self.block_length_gap = 5
