@@ -222,6 +222,8 @@ class TetrisEngine:
       
       next_shape = self.get_next_shape()
       self.falling_piece = Falling_Piece(next_shape, cfg["tetrominoes"])
+      self.falling_piece.center_x = self.falling_piece_starting_x
+      self.falling_piece.center_y = self.falling_piece_starting_y
 
       self.events = {
          "keyboard_event": object # TODO one before clear lines and one after
@@ -232,11 +234,6 @@ class TetrisEngine:
          self.playfield.is_block_available(x, y)
          for x, y in self.falling_piece.get_absolute_coordinates(center_x, center_y)
       ]) 
-
-   def drop_falling_piece(self, center_x :int, center_y :int) -> List:
-      while self.can_falling_piece_move(center_x, center_y - 1):
-         center_y -= 1
-      return [center_x, center_y]
 
    def get_next_shape(self) -> TetrominoShape:
       return random.choice([
@@ -249,84 +246,95 @@ class TetrisEngine:
          TetrominoShape.Z_SHAPE
       ])
    
-   def put_falling_piece(self, center_x :int, center_y :int) -> None:
-      self.set_falling_piece(center_x, center_y, self.falling_piece.shape)  
+   def move_left(self) -> None:
+      self.remove_falling_piece()
 
-   def remove_falling_piece(self, center_x :int, center_y :int) -> None:
-      self.set_falling_piece(center_x, center_y, TetrominoShape.NONE)
+      if self.can_falling_piece_move(self.falling_piece.center_x - 1, self.falling_piece.center_y):
+         self.falling_piece.center_x -= 1 
+      
+      self.put_falling_piece()
+      self.raise_keyboard_event()
+
+   def move_right(self) -> None:
+      self.remove_falling_piece()
+      
+      if self.can_falling_piece_move(self.falling_piece.center_x + 1, self.falling_piece.center_y):
+         self.falling_piece.center_x += 1 
+      
+      self.put_falling_piece()
+      self.raise_keyboard_event()
+
+   def move_down(self) -> None:
+      self.remove_falling_piece()
+      
+      if self.can_falling_piece_move(self.falling_piece.center_x, self.falling_piece.center_y - 1):
+         self.falling_piece.center_y -= 1
+      else:
+         self.put_falling_piece()
+         next_shape = self.get_next_shape()
+         self.falling_piece.set_shape(next_shape)
+         self.falling_piece.center_x = self.falling_piece_starting_x
+         self.falling_piece.center_y = self.falling_piece_starting_y
+         self.playfield.clear_full_lines()
+      
+      self.put_falling_piece()
+      self.raise_keyboard_event()
+
+   def drop(self) -> None: # TODO place the method alphabetically
+      self.remove_falling_piece()
+      
+      while self.can_falling_piece_move(self.falling_piece.center_x, self.falling_piece.center_y - 1):
+         self.falling_piece.center_y -= 1
+      self.put_falling_piece()
+      next_shape = self.get_next_shape()
+      self.falling_piece.set_shape(next_shape)
+      self.falling_piece.center_x = self.falling_piece_starting_x
+      self.falling_piece.center_y = self.falling_piece_starting_y
+      self.playfield.clear_full_lines()
+      
+      self.put_falling_piece()
+      self.raise_keyboard_event()
+
+   def rotate_left(self) -> None:
+      self.remove_falling_piece() # remove_falling_piece inside "can_falling_Piece_move"
+      
+      self.falling_piece.rotate_left()
+      if not self.can_falling_piece_move(self.falling_piece.center_x, self.falling_piece.center_y):
+         self.falling_piece.rotate_right()
+      
+      self.put_falling_piece()
+      self.raise_keyboard_event()
+
+   def rotate_right(self) -> None:
+      self.remove_falling_piece() # remove_falling_piece inside "can_falling_Piece_move"
+      
+      self.falling_piece.rotate_right()
+      if not self.can_falling_piece_move(self.falling_piece.center_x, self.falling_piece.center_y):
+         self.falling_piece.rotate_left()
+      
+      self.put_falling_piece()
+      self.raise_keyboard_event()
+
+   def put_falling_piece(self) -> None:
+      self.set_falling_piece(self.falling_piece.shape)  
+
+   def remove_falling_piece(self) -> None:
+      self.set_falling_piece(TetrominoShape.NONE)
 
    def raise_keyboard_event(self) -> None:
       self.events["keyboard_event"](self.playfield.grid)
 
    def run(self):      
-      x = self.falling_piece_starting_x
-      y = self.falling_piece_starting_y
 
-      self.clear_screen()
-      self.put_falling_piece(x, y)
-      self.playfield.print_grid()
-
-      set_falling_piece_and_get_next = False
-      key = "X"
-      while (key != ""):
-         key = input().upper()
-         
-         self.clear_screen()
-         self.remove_falling_piece(x, y)
-
-         if key == "A":
-            if self.can_falling_piece_move(x - 1, y):
-               x -= 1            
-
-         elif key == "D":
-            if self.can_falling_piece_move(x + 1, y):
-               x += 1
-
-         elif key == "S":
-            if self.can_falling_piece_move(x, y - 1):
-               y -= 1
-            else:
-               set_falling_piece_and_get_next = True
-
-         elif key == "K":
-            self.falling_piece.rotate_left()
-            if not self.can_falling_piece_move(x, y):
-               self.falling_piece.rotate_right()
-
-         elif key == "L":
-            self.falling_piece.rotate_right()
-            if not self.can_falling_piece_move(x, y):
-               self.falling_piece.rotate_left()
-
-         elif key == " ":
-            [x, y] = self.drop_falling_piece(x, y)
-            set_falling_piece_and_get_next = True
-
-         if set_falling_piece_and_get_next:
-            self.put_falling_piece(x, y)
-            next_shape = self.get_next_shape()
-            self.falling_piece.set_shape(next_shape)
-            x = self.falling_piece_starting_x
-            y = self.falling_piece_starting_y
-            self.playfield.clear_full_lines()
-
-            set_falling_piece_and_get_next = False
-
-         self.put_falling_piece(x, y)
-         self.playfield.print_grid()
-
-         self.raise_keyboard_event()
-         #self.updatePlayfieldHandler(self.playfield.grid) # TODO make it with events
+      self.put_falling_piece()
+      self.raise_keyboard_event()
 
    def set_event_handler(self, event_name :str, function :object) -> None:
       self.events[event_name] = function
 
-   def set_falling_piece(self, center_x :int, center_y :int, shape :TetrominoShape) -> None:
-      for x, y in self.falling_piece.get_absolute_coordinates(center_x, center_y):
+   def set_falling_piece(self, shape :TetrominoShape) -> None:
+      for x, y in self.falling_piece.get_absolute_coordinates(self.falling_piece.center_x, self.falling_piece.center_y):
          self.playfield.set_block(x, y, shape)
-   
-   def clear_screen(self) -> None:
-      os.system('cls' if os.name == 'nt' else 'clear') # TODO remove when we move to TK
 
 class Window(tk.Tk):
    def __init__(self):
@@ -344,8 +352,10 @@ class Window(tk.Tk):
       self.playfield_screen.pack(side=tk.TOP, anchor=tk.N)
 
       self.tetris_engine = TetrisEngine(config)
-      self.tetris_engine.set_event_handler("keyboard_event", self.test_event)
+      self.tetris_engine.set_event_handler("keyboard_event", self.test_event) # rename it as bind, as in Tkinter
       
+      self.bind('<KeyPress>', self.on_key_down)
+
       self.tetris_engine.run()
 
    def print_grid(self):
@@ -361,6 +371,21 @@ class Window(tk.Tk):
 
    def test_event(self, tetris_engine_playfield_grid :list):
       self.playfield_screen.draw(tetris_engine_playfield_grid)
+
+   def on_key_down(self, event=None):
+      key = event.keysym
+      if key == "Left":
+         self.tetris_engine.move_left()
+      elif key == "Right":
+         self.tetris_engine.move_right()
+      elif key == "Down":
+         self.tetris_engine.move_down()
+      elif key == "space":
+         self.tetris_engine.drop()
+      elif key == "z":
+         self.tetris_engine.rotate_left()
+      elif key == "x":
+         self.tetris_engine.rotate_right()
 
 class Playfield_Screen(tk.Canvas):
    def __init__(self, master, **kwargs):
@@ -419,6 +444,3 @@ class Playfield_Screen(tk.Canvas):
 if __name__ == "__main__":
    window = Window()
    window.mainloop()
-
-
-
