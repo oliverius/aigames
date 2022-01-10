@@ -1,11 +1,5 @@
 """
 TETRIS
-                 *
-   *   *         *
-** *   *  ** **  *  ***
-** ** ** **   ** *   *
-
-O  L  J  S   Z   I   T
 
 https://en.wikipedia.org/wiki/Tetromino
 https://tetris.fandom.com/wiki/SRS
@@ -18,23 +12,22 @@ import random
 import os
 from typing import Any, List # TODO remove when we are not dealing with terminals and we move to TK
 import tkinter as tk
-import tkinter.messagebox as msgbox
 
 @unique
 class TetrominoColor(Enum):
-   NONE = 0
-   BLUE = 1
-   CYAN = 2
-   PURPLE = 3
-   RED = 4
-   ORANGE = 5
-   GREEN = 6
-   YELLOW = 7
+   NONE = "#E8E8E8"
+   BLUE = "blue"
+   CYAN = "cyan"
+   PURPLE = "purple"
+   RED = "red"
+   ORANGE = "orange"
+   GREEN = "green"
+   YELLOW = "yellow"
+   def __str__(self) -> str:
+      return self.value
 
 @unique
 class TetrominoShape(Enum):
-   def __str__(self) -> str:
-       return self.value
    NONE = " "
    I_SHAPE = "I"
    J_SHAPE = "J"
@@ -43,6 +36,8 @@ class TetrominoShape(Enum):
    S_SHAPE = "S"
    T_SHAPE = "T"
    Z_SHAPE = "Z"
+   def __str__(self) -> str:
+       return self.value
 
 config = {
    # Based on https://tetris.fandom.com/wiki/SRS
@@ -329,9 +324,6 @@ class Window(tk.Tk):
       self.title("AI Games - Tetris")
       self.geometry("800x600")
 
-      # self.label = tk.Label(self, text="Hello world")
-      # self.label.pack(side=tk.LEFT, expand=1, padx=100, pady=50)
-
       exit_button = tk.Button(self, text="Exit", command=self.exit)
       exit_button.pack(side=tk.BOTTOM, padx=(20,0), pady=(0,20))
 
@@ -362,7 +354,7 @@ class Playfield_Screen(tk.Canvas):
    def __init__(self, master, **kwargs):
       self.width = 250
       self.height = 500
-      self.background = "#E8E8E8"
+      self.background = TetrominoColor.NONE
       super().__init__(master, width=self.width, height=self.height, bg=self.background, **kwargs)
 
       self.grid_x0 = 4
@@ -373,7 +365,14 @@ class Playfield_Screen(tk.Canvas):
       self.block_length = 20
       self.block_length_gap = 5
       
-      self.draw([[str(TetrominoShape.NONE)] * self.grid_width for y in range(self.grid_height)])
+      self.build_color_dictionary()
+      self.draw_blank_grid()
+
+   def build_color_dictionary(self) -> None:
+      self.colors_by_shape = {}
+      self.colors_by_shape[" "] = str(TetrominoColor.NONE)
+      for tetromino in config["tetrominoes"]:
+         self.colors_by_shape[str(tetromino["shape"])] = str(tetromino["color"])
 
    def draw(self, grid :list) -> None:
       # TODO erase all before every frame. Read this https://stackoverflow.com/a/15840231
@@ -384,13 +383,13 @@ class Playfield_Screen(tk.Canvas):
       self.draw_well()
       self.draw_grid(grid)
 
+   def draw_blank_grid(self) -> None:
+      self.draw([[str(TetrominoShape.NONE)] * self.grid_width for y in range(self.grid_height)])
+
    def draw_block(self, grid_x :int, grid_y :int, shape :TetrominoShape) -> None:
       x = self.grid_x0 + grid_x * (self.block_length + self.block_length_gap)
       y = self.grid_x0 + grid_y * (self.block_length + self.block_length_gap)
-      if shape == str(TetrominoShape.NONE): # TODO not hardcoded and also need different colors
-         color = "#E8E8E8"
-      else:
-         color = "red"
+      color = self.colors_by_shape[shape]
       self.create_rectangle( (x, y, x + self.block_length, y + self.block_length), outline="black", fill=color)
 
    def draw_grid(self, grid :list) -> None:
