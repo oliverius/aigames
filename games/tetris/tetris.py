@@ -7,21 +7,21 @@ https://tetris.fandom.com/wiki/Tetris_Guideline
 
 """
 
-from enum import Enum, unique
+from enum import Enum, IntEnum, unique
 import random
 from typing import Any, List # TODO remove when we are not dealing with terminals and we move to TK
 import tkinter as tk
 
 @unique
 class TetrominoColor(Enum):
-   NONE = "#E8E8E8"
-   BLUE = "blue"
-   CYAN = "cyan"
-   PURPLE = "purple"
-   RED = "red"
-   ORANGE = "orange"
-   GREEN = "green"
-   YELLOW = "yellow"
+   NONE = "#F4F0EC"     # Isabelline 
+   BLUE = "#325BBA"     # Dark cornflower blue
+   CYAN = "#188BC2"     # Cyan cornflower blue
+   PURPLE = "#915C83"   # Antique fuchsia
+   RED = "#CC0002"      # Boston University Red
+   ORANGE = "#F28500"   # Tangerine
+   GREEN = "#289D8C"    # Deep aquamarine
+   YELLOW = "#DEB887"   # Burlywood
    def __str__(self) -> str:
       return self.value
 
@@ -36,7 +36,7 @@ class TetrominoShape(Enum):
    T_SHAPE = "T"
    Z_SHAPE = "Z"
    def __str__(self) -> str:
-       return self.value
+      return self.value
 
 config = {
    # Based on https://tetris.fandom.com/wiki/SRS
@@ -158,10 +158,10 @@ class Playfield:
    def set_block(self, x: int, y: int, shape: TetrominoShape) -> None:
       self.grid[self.height - y][x - 1] = str(shape) # Coordinate system with (x,y) = (1,1) as left-bottom corner
 
-class Falling_Piece:
+class FallingPiece:
 
-   def __init__(self, shape :TetrominoShape, tetrominoes_data :list) -> None:
-      self.tetrominoes_data = tetrominoes_data
+   def __init__(self, shape :TetrominoShape) -> None:
+      self.tetrominoes = config["tetrominoes"]
       self.set_shape(shape)
       self.set_starting_position()
 
@@ -185,7 +185,7 @@ class Falling_Piece:
    def set_shape(self, shape: TetrominoShape) -> None:
       self.shape = shape
 
-      data = next((tetromino for tetromino in self.tetrominoes_data if tetromino["shape"] == self.shape), None)
+      data = next((tetromino for tetromino in self.tetrominoes if tetromino["shape"] == self.shape), None)
       self.orientations = data["orientations"]
       
       self.angle = 0
@@ -197,15 +197,20 @@ class Falling_Piece:
 
 class TetrisEngine:
 
-   def __init__(self, cfg: object) -> None:
-      self.playfield = Playfield(cfg["playfield"]["width"], cfg["playfield"]["height"])
+   @unique
+   class Events(IntEnum):
+      ON_KEY_DOWN = 1
+
+   def __init__(self) -> None:
+      self.playfield = Playfield(config["playfield"]["width"], config["playfield"]["height"])
       
       next_shape = self.get_next_shape()
-      self.falling_piece = Falling_Piece(next_shape, cfg["tetrominoes"])
+      self.falling_piece = FallingPiece(next_shape)
 
-      self.events = {
-         "keyboard_event": object # TODO one before clear lines and one after
-      }
+      self.event_bindings = {}
+
+   def bind_event(self, event_name :Events, function :object) -> None:
+      self.event_bindings[event_name] = function
 
    def can_falling_piece_move(self, center_x :int, center_y :int) -> bool:
       return all([
@@ -225,7 +230,7 @@ class TetrisEngine:
       self.playfield.clear_full_lines()
       
       self.put_falling_piece()
-      self.raise_keyboard_event()
+      self.raise_on_key_down_event()
 
    def get_next_shape(self) -> TetrominoShape:
       return random.choice([
@@ -251,7 +256,7 @@ class TetrisEngine:
          self.playfield.clear_full_lines()
       
       self.put_falling_piece()
-      self.raise_keyboard_event()
+      self.raise_on_key_down_event()
 
    def move_left(self) -> None:
       self.remove_falling_piece()
@@ -260,7 +265,7 @@ class TetrisEngine:
          self.falling_piece.center_x -= 1 
       
       self.put_falling_piece()
-      self.raise_keyboard_event()
+      self.raise_on_key_down_event()
 
    def move_right(self) -> None:
       self.remove_falling_piece()
@@ -269,27 +274,27 @@ class TetrisEngine:
          self.falling_piece.center_x += 1 
       
       self.put_falling_piece()
-      self.raise_keyboard_event()
+      self.raise_on_key_down_event()
 
    def rotate_left(self) -> None:
-      self.remove_falling_piece() # remove_falling_piece inside "can_falling_Piece_move"
+      self.remove_falling_piece()
       
       self.falling_piece.rotate_left()
       if not self.can_falling_piece_move(self.falling_piece.center_x, self.falling_piece.center_y):
          self.falling_piece.rotate_right()
       
       self.put_falling_piece()
-      self.raise_keyboard_event()
+      self.raise_on_key_down_event()
 
    def rotate_right(self) -> None:
-      self.remove_falling_piece() # remove_falling_piece inside "can_falling_Piece_move"
+      self.remove_falling_piece()
       
       self.falling_piece.rotate_right()
       if not self.can_falling_piece_move(self.falling_piece.center_x, self.falling_piece.center_y):
          self.falling_piece.rotate_left()
       
       self.put_falling_piece()
-      self.raise_keyboard_event()
+      self.raise_on_key_down_event()
 
    def put_falling_piece(self) -> None:
       self.set_falling_piece(self.falling_piece.shape)  
@@ -297,16 +302,12 @@ class TetrisEngine:
    def remove_falling_piece(self) -> None:
       self.set_falling_piece(TetrominoShape.NONE)
 
-   def raise_keyboard_event(self) -> None:
-      self.events["keyboard_event"](self.playfield.grid)
+   def raise_on_key_down_event(self) -> None:
+      self.event_bindings[TetrisEngine.Events.ON_KEY_DOWN]()
 
-   def run(self):      
-
+   def run(self):
       self.put_falling_piece()
-      self.raise_keyboard_event()
-
-   def set_event_handler(self, event_name :str, function :object) -> None:
-      self.events[event_name] = function
+      self.raise_on_key_down_event()
 
    def set_falling_piece(self, shape :TetrominoShape) -> None:
       for x, y in self.falling_piece.get_absolute_coordinates(self.falling_piece.center_x, self.falling_piece.center_y):
@@ -321,32 +322,21 @@ class Window(tk.Tk):
       exit_button = tk.Button(self, text="Exit", command=self.exit)
       exit_button.pack(side=tk.BOTTOM, padx=(20,0), pady=(0,20))
 
-      print_button = tk.Button(self, text="Print grid", command=self.print_grid)
-      print_button.pack(side=tk.BOTTOM, padx=(20,0), pady=(0,20))
-
-      self.playfield_screen = Playfield_Screen(self)
+      self.playfield_screen = PlayfieldScreen(self)
       self.playfield_screen.pack(side=tk.TOP, anchor=tk.N)
 
-      self.tetris_engine = TetrisEngine(config)
-      self.tetris_engine.set_event_handler("keyboard_event", self.test_event) # rename it as bind, as in Tkinter
+      self.tetris_engine = TetrisEngine()
+      self.tetris_engine.bind_event(TetrisEngine.Events.ON_KEY_DOWN, self.test_event)
       
       self.bind('<KeyPress>', self.on_key_down)
 
       self.tetris_engine.run()
 
-   def print_grid(self):
-      printed_grid = ""
-      for y in range(self.tetris_engine.playfield.height):
-         for x in range(self.tetris_engine.playfield.width):
-            printed_grid = printed_grid + self.tetris_engine.playfield.grid[y][x] + " "
-         printed_grid += "\n"
-      print(printed_grid)
-
    def exit(self):
       self.destroy()
 
-   def test_event(self, tetris_engine_playfield_grid :list):
-      self.playfield_screen.draw(tetris_engine_playfield_grid)
+   def test_event(self):
+      self.playfield_screen.draw(self.tetris_engine.playfield.grid)
 
    def on_key_down(self, event=None):
       key = event.keysym
@@ -363,15 +353,15 @@ class Window(tk.Tk):
       elif key == "x":
          self.tetris_engine.rotate_right()
 
-class Playfield_Screen(tk.Canvas):
+class PlayfieldScreen(tk.Canvas):
    def __init__(self, master, **kwargs):
       self.width = 224
       self.height = 444
       self.background = config["playfield"]["background_color"]
       super().__init__(master, width=self.width, height=self.height, bg=self.background, **kwargs)
 
-      self.grid_width = 10
-      self.grid_height = 20
+      self.grid_width = config["playfield"]["width"]
+      self.grid_height = config["playfield"]["height"]
 
       self.grid_x0 = 4
       self.grid_y0 = 4
