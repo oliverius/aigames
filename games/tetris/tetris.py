@@ -9,6 +9,7 @@ https://tetris.fandom.com/wiki/Tetris_Guideline
 
 from enum import Enum, IntEnum, unique
 import random
+from tkinter.constants import NO
 from typing import Any, List # TODO remove when we are not dealing with terminals and we move to TK
 import tkinter as tk
 
@@ -63,10 +64,10 @@ config = {
          "shape": TetrominoShape.L_SHAPE,
          "color": TetrominoColor.ORANGE,
          "orientations": [
-            { "angles": [ 0   ], "relative_coordinates": [ [0, 0], [-1,  0], [-1,  1], [ 1,  0] ] },
-            { "angles": [ 90  ], "relative_coordinates": [ [0, 0], [ 0, -1], [ 0,  1], [ 1,  1] ] },
-            { "angles": [ 180 ], "relative_coordinates": [ [0, 0], [-1,  0], [ 1,  0], [ 1, -1] ] },
-            { "angles": [ 270 ], "relative_coordinates": [ [0, 0], [ 0,  1], [ 0, -1], [-1, -1] ] }
+            { "angles": [ 0   ], "relative_coordinates": [ [0, 0], [-1,  0], [1,  0], [ 1,  1] ] },
+            { "angles": [ 90  ], "relative_coordinates": [ [0, 0], [ 0,  1], [0, -1], [ 1, -1] ] },
+            { "angles": [ 180 ], "relative_coordinates": [ [0, 0], [-1,  0], [1,  0], [-1, -1] ] },
+            { "angles": [ 270 ], "relative_coordinates": [ [0, 0], [ 0,  1], [0, -1], [-1,  1] ] }
          ]
       },
       {
@@ -125,7 +126,7 @@ class Playfield:
        self.height = height
        self.grid = [[str(TetrominoShape.NONE)] * self.width for y in range(self.height)]
 
-   def clear_full_lines(self) -> None:
+   def clear_full_lines(self) -> int:
       """
       It is difficult to remove elements (full lines) from a grid.
       It is safer to create a new grid without those full lines
@@ -138,6 +139,8 @@ class Playfield:
          new_grid.insert(0, [str(TetrominoShape.NONE)] * self.width)
 
       self.grid = new_grid
+
+      return lines_cleared
 
    def get_block(self, x: int, y: int) -> str:
       return self.grid[self.height - y][x - 1] # Coordinate system with (x,y) = (1,1) as left-bottom corner
@@ -199,7 +202,8 @@ class TetrisEngine:
 
    @unique
    class Events(IntEnum):
-      ON_KEY_DOWN = 1
+      ON_KEY_DOWN = 1,
+      ON_LINES_CLEARED = 2
 
    def __init__(self) -> None:
       self.playfield = Playfield(config["playfield"]["width"], config["playfield"]["height"])
@@ -223,11 +227,8 @@ class TetrisEngine:
       
       while self.can_falling_piece_move(self.falling_piece.center_x, self.falling_piece.center_y - 1):
          self.falling_piece.center_y -= 1
-      self.put_falling_piece()
-      next_shape = self.get_next_shape()
-      self.falling_piece.set_shape(next_shape)
-      self.falling_piece.set_starting_position()
-      self.playfield.clear_full_lines()
+      
+      self.steps_after_falling_piece_cannot_move()
       
       self.put_falling_piece()
       self.raise_on_key_down_event()
@@ -249,14 +250,19 @@ class TetrisEngine:
       if self.can_falling_piece_move(self.falling_piece.center_x, self.falling_piece.center_y - 1):
          self.falling_piece.center_y -= 1
       else:
-         self.put_falling_piece()
-         next_shape = self.get_next_shape()
-         self.falling_piece.set_shape(next_shape)
-         self.falling_piece.set_starting_position()
-         self.playfield.clear_full_lines()
+         self.steps_after_falling_piece_cannot_move()
       
       self.put_falling_piece()
       self.raise_on_key_down_event()
+
+   def steps_after_falling_piece_cannot_move(self) -> None:
+      self.put_falling_piece()
+      next_shape = self.get_next_shape()
+      self.falling_piece.set_shape(next_shape)
+      self.falling_piece.set_starting_position()
+      lines_cleared = self.playfield.clear_full_lines()
+      if lines_cleared > 0:
+         self.raise_on_lines_cleared_event(lines_cleared)
 
    def move_left(self) -> None:
       self.remove_falling_piece()
@@ -305,6 +311,9 @@ class TetrisEngine:
    def raise_on_key_down_event(self) -> None:
       self.event_bindings[TetrisEngine.Events.ON_KEY_DOWN]()
 
+   def raise_on_lines_cleared_event(self, lines :int) -> None:
+      self.event_bindings[TetrisEngine.Events.ON_LINES_CLEARED](lines)
+
    def run(self):
       self.put_falling_piece()
       self.raise_on_key_down_event()
@@ -326,7 +335,8 @@ class Window(tk.Tk):
       self.playfield_screen.pack(side=tk.TOP, anchor=tk.N)
 
       self.tetris_engine = TetrisEngine()
-      self.tetris_engine.bind_event(TetrisEngine.Events.ON_KEY_DOWN, self.test_event)
+      self.tetris_engine.bind_event(TetrisEngine.Events.ON_KEY_DOWN, self.draw_playfield)
+      self.tetris_engine.bind_event(TetrisEngine.Events.ON_LINES_CLEARED, self.update_cleared_lines)
       
       self.bind('<KeyPress>', self.on_key_down)
 
@@ -335,8 +345,11 @@ class Window(tk.Tk):
    def exit(self):
       self.destroy()
 
-   def test_event(self):
+   def draw_playfield(self):
       self.playfield_screen.draw(self.tetris_engine.playfield.grid)
+
+   def update_cleared_lines(self, lines_cleared :int):
+      print(lines_cleared)
 
    def on_key_down(self, event=None):
       key = event.keysym
