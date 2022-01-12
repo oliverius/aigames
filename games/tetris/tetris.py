@@ -9,9 +9,9 @@ https://tetris.fandom.com/wiki/Tetris_Guideline
 
 from enum import Enum, IntEnum, unique
 import random
-from tkinter.constants import NO
 from typing import Any, List # TODO remove when we are not dealing with terminals and we move to TK
 import tkinter as tk
+import tkinter.ttk as ttk
 
 @unique
 class TetrominoColor(Enum):
@@ -114,7 +114,8 @@ config = {
       "background_color": "grey",
       "falling_piece": {
          "starting_x": 5,
-         "starting_y": 19
+         "starting_y": 19,
+         "gravity_speed": 2000
       }
    }
 }
@@ -202,8 +203,9 @@ class TetrisEngine:
 
    @unique
    class Events(IntEnum):
-      ON_KEY_DOWN = 1,
-      ON_LINES_CLEARED = 2
+      ON_PLAYFIELD_UPDATED = 1,
+      ON_LINES_CLEARED = 2,
+      ON_GAME_OVER = 3 # TODO
 
    def __init__(self) -> None:
       self.playfield = Playfield(config["playfield"]["width"], config["playfield"]["height"])
@@ -228,10 +230,10 @@ class TetrisEngine:
       while self.can_falling_piece_move(self.falling_piece.center_x, self.falling_piece.center_y - 1):
          self.falling_piece.center_y -= 1
       
-      self.steps_after_falling_piece_cannot_move()
+      self.lock_falling_piece()
       
       self.put_falling_piece()
-      self.raise_on_key_down_event()
+      self.raise_on_playfield_updated_event()
 
    def get_next_shape(self) -> TetrominoShape:
       return random.choice([
@@ -244,25 +246,27 @@ class TetrisEngine:
          TetrominoShape.Z_SHAPE
       ])
    
+   def lock_falling_piece(self) -> None:
+      self.put_falling_piece()
+
+      lines_cleared = self.playfield.clear_full_lines()
+      if lines_cleared > 0:
+         self.raise_on_lines_cleared_event(lines_cleared)
+      
+      next_shape = self.get_next_shape()
+      self.falling_piece.set_shape(next_shape)
+      self.falling_piece.set_starting_position()
+
    def move_down(self) -> None:
       self.remove_falling_piece()
       
       if self.can_falling_piece_move(self.falling_piece.center_x, self.falling_piece.center_y - 1):
          self.falling_piece.center_y -= 1
       else:
-         self.steps_after_falling_piece_cannot_move()
+         self.lock_falling_piece()
       
       self.put_falling_piece()
-      self.raise_on_key_down_event()
-
-   def steps_after_falling_piece_cannot_move(self) -> None:
-      self.put_falling_piece()
-      next_shape = self.get_next_shape()
-      self.falling_piece.set_shape(next_shape)
-      self.falling_piece.set_starting_position()
-      lines_cleared = self.playfield.clear_full_lines()
-      if lines_cleared > 0:
-         self.raise_on_lines_cleared_event(lines_cleared)
+      self.raise_on_playfield_updated_event()
 
    def move_left(self) -> None:
       self.remove_falling_piece()
@@ -271,7 +275,7 @@ class TetrisEngine:
          self.falling_piece.center_x -= 1 
       
       self.put_falling_piece()
-      self.raise_on_key_down_event()
+      self.raise_on_playfield_updated_event()
 
    def move_right(self) -> None:
       self.remove_falling_piece()
@@ -280,7 +284,7 @@ class TetrisEngine:
          self.falling_piece.center_x += 1 
       
       self.put_falling_piece()
-      self.raise_on_key_down_event()
+      self.raise_on_playfield_updated_event()
 
    def rotate_left(self) -> None:
       self.remove_falling_piece()
@@ -290,7 +294,7 @@ class TetrisEngine:
          self.falling_piece.rotate_right()
       
       self.put_falling_piece()
-      self.raise_on_key_down_event()
+      self.raise_on_playfield_updated_event()
 
    def rotate_right(self) -> None:
       self.remove_falling_piece()
@@ -300,7 +304,7 @@ class TetrisEngine:
          self.falling_piece.rotate_left()
       
       self.put_falling_piece()
-      self.raise_on_key_down_event()
+      self.raise_on_playfield_updated_event()
 
    def put_falling_piece(self) -> None:
       self.set_falling_piece(self.falling_piece.shape)  
@@ -308,15 +312,18 @@ class TetrisEngine:
    def remove_falling_piece(self) -> None:
       self.set_falling_piece(TetrominoShape.NONE)
 
-   def raise_on_key_down_event(self) -> None:
-      self.event_bindings[TetrisEngine.Events.ON_KEY_DOWN]()
+   def raise_on_game_over(self) -> None:
+      self.event_bindings[TetrisEngine.Events.ON_GAME_OVER]()
 
    def raise_on_lines_cleared_event(self, lines :int) -> None:
       self.event_bindings[TetrisEngine.Events.ON_LINES_CLEARED](lines)
 
+   def raise_on_playfield_updated_event(self) -> None:
+      self.event_bindings[TetrisEngine.Events.ON_PLAYFIELD_UPDATED]()
+
    def run(self):
       self.put_falling_piece()
-      self.raise_on_key_down_event()
+      self.raise_on_playfield_updated_event()
 
    def set_falling_piece(self, shape :TetrominoShape) -> None:
       for x, y in self.falling_piece.get_absolute_coordinates(self.falling_piece.center_x, self.falling_piece.center_y):
@@ -328,29 +335,36 @@ class Window(tk.Tk):
       self.title("AI Games - Tetris")
       self.geometry("800x600")
 
-      exit_button = tk.Button(self, text="Exit", command=self.exit)
-      exit_button.pack(side=tk.BOTTOM, padx=(20,0), pady=(0,20))
+      exit_button = ttk.Button(self, text="Exit", command=self.exit)
+      exit_button.pack(padx=(20,0), pady=(0,20))
+
+      self.total_lines_cleared = 0
+      self.lines_cleared_text = tk.StringVar()
+      self.update_lines_cleared_counter(self.total_lines_cleared)
+
+      lines_cleared_label = ttk.Label(self, textvariable=self.lines_cleared_text)
+      lines_cleared_label.pack()
+
+      self.bind('<KeyPress>', self.on_key_down)
 
       self.playfield_screen = PlayfieldScreen(self)
       self.playfield_screen.pack(side=tk.TOP, anchor=tk.N)
 
       self.tetris_engine = TetrisEngine()
-      self.tetris_engine.bind_event(TetrisEngine.Events.ON_KEY_DOWN, self.draw_playfield)
-      self.tetris_engine.bind_event(TetrisEngine.Events.ON_LINES_CLEARED, self.update_cleared_lines)
-      
-      self.bind('<KeyPress>', self.on_key_down)
-
+      self.tetris_engine.bind_event(TetrisEngine.Events.ON_PLAYFIELD_UPDATED, self.update_playfield)
+      self.tetris_engine.bind_event(TetrisEngine.Events.ON_LINES_CLEARED, self.update_lines_cleared_counter)
       self.tetris_engine.run()
+
+      self.gravity_speed = config["playfield"]["falling_piece"]["gravity_speed"]
+      self.after(0, self.gravity)
 
    def exit(self):
       self.destroy()
 
-   def draw_playfield(self):
-      self.playfield_screen.draw(self.tetris_engine.playfield.grid)
-
-   def update_cleared_lines(self, lines_cleared :int):
-      print(lines_cleared)
-
+   def gravity(self) -> None:
+      self.tetris_engine.move_down()
+      self.after(self.gravity_speed, self.gravity)
+   
    def on_key_down(self, event=None):
       key = event.keysym
       if key == "Left":
@@ -365,6 +379,13 @@ class Window(tk.Tk):
          self.tetris_engine.rotate_left()
       elif key == "x":
          self.tetris_engine.rotate_right()
+
+   def update_lines_cleared_counter(self, lines_cleared :int):
+       self.total_lines_cleared += lines_cleared
+       self.lines_cleared_text.set(f"Lines cleared: {self.total_lines_cleared}")
+
+   def update_playfield(self):
+      self.playfield_screen.draw(self.tetris_engine.playfield.grid)
 
 class PlayfieldScreen(tk.Canvas):
    def __init__(self, master, **kwargs):
