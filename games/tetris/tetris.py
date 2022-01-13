@@ -215,8 +215,8 @@ class TetrisEngine:
 
       self.event_bindings = {}
 
-   def bind_event(self, event_name :Events, function :object) -> None:
-      self.event_bindings[event_name] = function
+   def bind_event(self, event_name :Events, func:object) -> None:
+      self.event_bindings[event_name] = func
 
    def can_falling_piece_move(self, center_x :int, center_y :int) -> bool:
       return all([
@@ -234,6 +234,15 @@ class TetrisEngine:
       
       self.put_falling_piece()
       self.raise_on_playfield_updated_event()
+
+   def get_next_piece_or_game_over(self) -> None:
+      next_shape = self.get_next_shape()
+      self.falling_piece.set_shape(next_shape)
+
+      self.falling_piece.set_starting_position()
+
+      if not self.can_falling_piece_move(self.falling_piece.center_x, self.falling_piece.center_y):
+         self.raise_on_game_over_event()
 
    def get_next_shape(self) -> TetrominoShape:
       return random.choice([
@@ -253,9 +262,7 @@ class TetrisEngine:
       if lines_cleared > 0:
          self.raise_on_lines_cleared_event(lines_cleared)
       
-      next_shape = self.get_next_shape()
-      self.falling_piece.set_shape(next_shape)
-      self.falling_piece.set_starting_position()
+      self.get_next_piece_or_game_over()
 
    def move_down(self) -> None:
       self.remove_falling_piece()
@@ -312,7 +319,7 @@ class TetrisEngine:
    def remove_falling_piece(self) -> None:
       self.set_falling_piece(TetrominoShape.NONE)
 
-   def raise_on_game_over(self) -> None:
+   def raise_on_game_over_event(self) -> None:
       self.event_bindings[TetrisEngine.Events.ON_GAME_OVER]()
 
    def raise_on_lines_cleared_event(self, lines :int) -> None:
@@ -353,19 +360,30 @@ class Window(tk.Tk):
       self.tetris_engine = TetrisEngine()
       self.tetris_engine.bind_event(TetrisEngine.Events.ON_PLAYFIELD_UPDATED, self.update_playfield)
       self.tetris_engine.bind_event(TetrisEngine.Events.ON_LINES_CLEARED, self.update_lines_cleared_counter)
+      self.tetris_engine.bind_event(TetrisEngine.Events.ON_GAME_OVER, self.game_over)
       self.tetris_engine.run()
 
-      self.gravity_speed = config["playfield"]["falling_piece"]["gravity_speed"]
-      self.after(0, self.gravity)
+      self.is_game_over = False # Needed because we always had one more call to execute_gravity, starting the timer again
+      self.gravity_speed = config["playfield"]["falling_piece"]["gravity_speed"]      
+      self.gravity_timer = self.after(0, self.execute_gravity)
 
-   def exit(self):
+   def exit(self) -> None:
       self.destroy()
 
-   def gravity(self) -> None:
+   def execute_gravity(self) -> None:
+      if self.is_game_over:
+         self.after_cancel(self.gravity_timer)
+         self.gravity_timer = None
+         return
       self.tetris_engine.move_down()
-      self.after(self.gravity_speed, self.gravity)
+      self.gravity_timer = self.after(self.gravity_speed, self.execute_gravity)
+
+   def game_over(self) -> None:
+      self.is_game_over = True
    
    def on_key_down(self, event=None):
+      if self.is_game_over:
+         return
       key = event.keysym
       if key == "Left":
          self.tetris_engine.move_left()
