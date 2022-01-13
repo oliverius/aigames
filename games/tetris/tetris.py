@@ -12,6 +12,7 @@ import random
 from typing import Any, List # TODO remove when we are not dealing with terminals and we move to TK
 import tkinter as tk
 import tkinter.ttk as ttk
+import datetime
 
 @unique
 class TetrominoColor(Enum):
@@ -125,7 +126,10 @@ class Playfield:
    def __init__(self, width: int, height: int) -> None:
        self.width = width
        self.height = height
-       self.grid = [[str(TetrominoShape.NONE)] * self.width for y in range(self.height)]
+       self.clear()
+
+   def clear(self) -> None:
+      self.grid = [[str(TetrominoShape.NONE)] * self.width for y in range(self.height)]
 
    def clear_full_lines(self) -> int:
       """
@@ -328,7 +332,9 @@ class TetrisEngine:
    def raise_on_playfield_updated_event(self) -> None:
       self.event_bindings[TetrisEngine.Events.ON_PLAYFIELD_UPDATED]()
 
-   def run(self):
+   def run(self) -> None:
+      self.playfield.clear()
+      self.falling_piece.set_starting_position()
       self.put_falling_piece()
       self.raise_on_playfield_updated_event()
 
@@ -339,33 +345,34 @@ class TetrisEngine:
 class Window(tk.Tk):
    def __init__(self):
       super().__init__()
-      self.title("AI Games - Tetris")
-      self.geometry("800x600")
 
-      exit_button = ttk.Button(self, text="Exit", command=self.exit)
-      exit_button.pack(padx=(20,0), pady=(0,20))
+      self.title("AI Games - Tetris")
+      self.geometry("264x560")
 
       self.total_lines_cleared = 0
       self.lines_cleared_text = tk.StringVar()
       self.update_lines_cleared_counter(self.total_lines_cleared)
 
       lines_cleared_label = ttk.Label(self, textvariable=self.lines_cleared_text)
-      lines_cleared_label.pack()
+      lines_cleared_label.place(x=20, y=480)
+
+      exit_button = ttk.Button(self, text="Exit", command=self.exit)
+      exit_button.place(x=20, y=520)
+
+      new_game_button = ttk.Button(self, text="New game", command=self.new_game)
+      new_game_button.place(x=100, y=520)
 
       self.bind('<KeyPress>', self.on_key_down)
 
       self.playfield_screen = PlayfieldScreen(self)
-      self.playfield_screen.pack(side=tk.TOP, anchor=tk.N)
+      self.playfield_screen.place(x=20, y=20)
 
       self.tetris_engine = TetrisEngine()
       self.tetris_engine.bind_event(TetrisEngine.Events.ON_PLAYFIELD_UPDATED, self.update_playfield)
       self.tetris_engine.bind_event(TetrisEngine.Events.ON_LINES_CLEARED, self.update_lines_cleared_counter)
       self.tetris_engine.bind_event(TetrisEngine.Events.ON_GAME_OVER, self.game_over)
-      self.tetris_engine.run()
 
-      self.is_game_over = False # Needed because we always had one more call to execute_gravity, starting the timer again
-      self.gravity_speed = config["playfield"]["falling_piece"]["gravity_speed"]      
-      self.gravity_timer = self.after(0, self.execute_gravity)
+      self.new_game()
 
    def exit(self) -> None:
       self.destroy()
@@ -376,11 +383,22 @@ class Window(tk.Tk):
          self.gravity_timer = None
          return
       self.tetris_engine.move_down()
+      print("time", datetime.datetime.now())
       self.gravity_timer = self.after(self.gravity_speed, self.execute_gravity)
 
    def game_over(self) -> None:
       self.is_game_over = True
    
+   def new_game(self) -> None:
+      print("new game")
+      self.focus_set() # This is important to avoid the button "new game" on focus when we press space bar while playing
+
+      self.is_game_over = False # Needed because we always had one more call to execute_gravity, starting the timer again
+      self.gravity_speed = config["playfield"]["falling_piece"]["gravity_speed"]      
+      self.tetris_engine.run()
+      self.gravity_timer = None
+      self.execute_gravity()
+
    def on_key_down(self, event=None):
       if self.is_game_over:
          return
@@ -422,7 +440,7 @@ class PlayfieldScreen(tk.Canvas):
       self.block_length_gap = 2
       
       self.build_color_dictionary()
-      self.draw_blank_grid()
+      self.clear()
 
    def build_color_dictionary(self) -> None:
       self.colors_by_shape = {}
@@ -431,15 +449,15 @@ class PlayfieldScreen(tk.Canvas):
          self.colors_by_shape[str(tetromino["shape"])] = str(tetromino["color"])
 
    def draw(self, grid :list) -> None:
-      # TODO erase all before every frame. Read this https://stackoverflow.com/a/15840231
-      # Probably better just changing color of blocks if they are different from before?
-      # Need to have a copy of previous playfield, or just check colors of what we have in the current grid internally?
-      # For now I will erase all
+      # The right thing to do is to tag each block and redraw only the ones that are different
+      # i.e. different color. See this answer from comments: https://stackoverflow.com/a/15840231
+      # But due to the simplicity of our grid and since I can't see any slowdown due to this,
+      # we will delete all the graphics and redraw them in each frame
       self.delete("all")
       self.draw_well()
       self.draw_grid(grid)
 
-   def draw_blank_grid(self) -> None:
+   def clear(self) -> None:
       self.draw([[str(TetrominoShape.NONE)] * self.grid_width for y in range(self.grid_height)])
 
    def draw_block(self, grid_x :int, grid_y :int, shape :TetrominoShape) -> None:
