@@ -349,9 +349,8 @@ class Window(tk.Tk):
       self.title("AI Games - Tetris")
       self.geometry("264x560")
 
-      self.total_lines_cleared = 0
       self.lines_cleared_text = tk.StringVar()
-      self.update_lines_cleared_counter(self.total_lines_cleared)
+      self.reset_lines_cleared_counter()
 
       lines_cleared_label = ttk.Label(self, textvariable=self.lines_cleared_text)
       lines_cleared_label.place(x=20, y=480)
@@ -372,6 +371,8 @@ class Window(tk.Tk):
       self.tetris_engine.bind_event(TetrisEngine.Events.ON_LINES_CLEARED, self.update_lines_cleared_counter)
       self.tetris_engine.bind_event(TetrisEngine.Events.ON_GAME_OVER, self.game_over)
 
+      self.gravity_timer = None # It has to be define outside new_game or it will mess up after_cancel
+                                # since the value will be None
       self.new_game()
 
    def exit(self) -> None:
@@ -379,24 +380,23 @@ class Window(tk.Tk):
 
    def execute_gravity(self) -> None:
       if self.is_game_over:
-         self.after_cancel(self.gravity_timer)
-         self.gravity_timer = None
+         self.stop_timer()
          return
       self.tetris_engine.move_down()
-      print("time", datetime.datetime.now())
       self.gravity_timer = self.after(self.gravity_speed, self.execute_gravity)
 
    def game_over(self) -> None:
       self.is_game_over = True
    
    def new_game(self) -> None:
-      print("new game")
-      self.focus_set() # This is important to avoid the button "new game" on focus when we press space bar while playing
-
       self.is_game_over = False # Needed because we always had one more call to execute_gravity, starting the timer again
       self.gravity_speed = config["playfield"]["falling_piece"]["gravity_speed"]      
+      self.stop_timer()
+      self.reset_lines_cleared_counter()
+      self.focus_set() # This is important to avoid the button "new game" on focus when we press space bar while playing
+
       self.tetris_engine.run()
-      self.gravity_timer = None
+      
       self.execute_gravity()
 
    def on_key_down(self, event=None):
@@ -415,6 +415,14 @@ class Window(tk.Tk):
          self.tetris_engine.rotate_left()
       elif key == "x":
          self.tetris_engine.rotate_right()
+
+   def stop_timer(self) -> None:
+      if self.gravity_timer:
+         self.after_cancel(self.gravity_timer)
+
+   def reset_lines_cleared_counter(self) -> None:
+      self.total_lines_cleared = 0
+      self.update_lines_cleared_counter(0)
 
    def update_lines_cleared_counter(self, lines_cleared :int):
        self.total_lines_cleared += lines_cleared
