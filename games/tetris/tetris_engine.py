@@ -166,11 +166,13 @@ class FallingPiece:
 
    def __init__(self, shape :TetrominoShape) -> None:
       self.tetrominoes = config["tetrominoes"]
-      self.set_shape(shape)
-      self.set_starting_position()
+      self.set_new_falling_piece(shape)
 
    def get_absolute_coordinates(self, center_x :int, center_y :int):
       return [ [center_x + relative_x, center_y + relative_y] for relative_x, relative_y in self.relative_coordinates]
+
+   def get_current_absolute_coordinates(self):
+      return self.get_absolute_coordinates(self.center_x, self.center_y)
 
    def get_relative_coordinates(self, angle :int) -> any:
       data = next((orientation for orientation in self.orientations if angle in orientation["angles"]), None)
@@ -186,14 +188,20 @@ class FallingPiece:
       if self.angle == 360 : self.angle = 0
       self.relative_coordinates = self.get_relative_coordinates(self.angle)
 
+   def set_angle(self, angle :int) -> None:
+      self.angle = angle
+      self.relative_coordinates = self.get_relative_coordinates(self.angle)
+
+   def set_new_falling_piece(self, shape: TetrominoShape) -> None:
+      self.set_shape(shape)
+      self.set_angle(0)
+      self.set_starting_position()
+
    def set_shape(self, shape: TetrominoShape) -> None:
       self.shape = shape
 
       data = next((tetromino for tetromino in self.tetrominoes if tetromino["shape"] == self.shape), None)
       self.orientations = data["orientations"]
-      
-      self.angle = 0
-      self.relative_coordinates = self.get_relative_coordinates(self.angle)
 
    def set_starting_position(self) -> None:
       self.center_x = config["playfield"]["falling_piece"]["starting_x"]
@@ -204,8 +212,8 @@ class TetrisEngine:
    @unique
    class Events(IntEnum):
       ON_PLAYFIELD_UPDATED = 1,
-      ON_LINES_CLEARED = 2,
-      ON_GAME_OVER = 3 # TODO
+      ON_LINES_CLEARED     = 2,
+      ON_GAME_OVER         = 3
 
    def __init__(self) -> None:
       self.playfield = Playfield(config["playfield"]["width"], config["playfield"]["height"])
@@ -218,30 +226,40 @@ class TetrisEngine:
    def bind_event(self, event_name :Events, func:object) -> None:
       self.event_bindings[event_name] = func
 
-   def can_falling_piece_move(self, center_x :int, center_y :int) -> bool:
-      return all([
+   def can_put_new_falling_piece(self) -> bool:
+      return  all([
          self.playfield.is_block_available(x, y)
-         for x, y in self.falling_piece.get_absolute_coordinates(center_x, center_y)
-      ]) 
+         for x, y in self.falling_piece.get_current_absolute_coordinates()
+      ])
+
+   def can_move_falling_piece(self, new_center_x :int, new_center_y :int) -> bool:
+      new_coordinates = self.falling_piece.get_absolute_coordinates(new_center_x, new_center_y)
+      all_blocks_within_boundaries = all([self.playfield.is_block_within_boundaries(x,y) for x, y in new_coordinates])
+      if not all_blocks_within_boundaries:  # check necessary here to avoid index out of range
+         return False
+      
+      current_coordinates = self.falling_piece.get_current_absolute_coordinates()
+      all_blocks_empty_or_currently_with_falling_piece = all([
+         self.playfield.is_block_empty(x, y) or [x, y] in current_coordinates
+         for x, y in new_coordinates
+      ])
+
+      return all_blocks_empty_or_currently_with_falling_piece
 
    def drop(self) -> None:
-      self.remove_falling_piece()
-      
-      while self.can_falling_piece_move(self.falling_piece.center_x, self.falling_piece.center_y - 1):
-         self.falling_piece.center_y -= 1
-      
+      while self.can_move_falling_piece(self.falling_piece.center_x, self.falling_piece.center_y - 1):
+         self.move_falling_piece(self.falling_piece.center_x, self.falling_piece.center_y - 1)
       self.lock_falling_piece()
-      
-      self.put_falling_piece()
       self.raise_on_playfield_updated_event()
 
    def get_next_piece_or_game_over(self) -> None:
       next_shape = self.get_next_shape()
-      self.falling_piece.set_shape(next_shape)
+      self.falling_piece.set_new_falling_piece(next_shape)
 
-      self.falling_piece.set_starting_position()
-
-      if not self.can_falling_piece_move(self.falling_piece.center_x, self.falling_piece.center_y):
+      if self.can_put_new_falling_piece():
+         self.put_falling_piece()
+      else:
+         print("game over")
          self.raise_on_game_over_event()
 
    def get_next_shape(self) -> TetrominoShape:
@@ -265,51 +283,41 @@ class TetrisEngine:
       self.get_next_piece_or_game_over()
 
    def move_down(self) -> None:
-      self.remove_falling_piece()
-      
-      if self.can_falling_piece_move(self.falling_piece.center_x, self.falling_piece.center_y - 1):
-         self.falling_piece.center_y -= 1
+      if self.can_move_falling_piece(self.falling_piece.center_x, self.falling_piece.center_y - 1):
+         self.move_falling_piece(self.falling_piece.center_x, self.falling_piece.center_y - 1)
       else:
          self.lock_falling_piece()
-      
-      self.put_falling_piece()
       self.raise_on_playfield_updated_event()
 
-   def move_left(self) -> None:
+   def move_falling_piece(self, new_center_x :int, new_center_y :int) -> None:
       self.remove_falling_piece()
-
-      if self.can_falling_piece_move(self.falling_piece.center_x - 1, self.falling_piece.center_y):
-         self.falling_piece.center_x -= 1 
-      
+      self.falling_piece.center_x = new_center_x
+      self.falling_piece.center_y = new_center_y
       self.put_falling_piece()
+
+   def move_left(self) -> None:
+      if self.can_move_falling_piece(self.falling_piece.center_x - 1, self.falling_piece.center_y):
+         self.move_falling_piece(self.falling_piece.center_x - 1, self.falling_piece.center_y)
       self.raise_on_playfield_updated_event()
 
    def move_right(self) -> None:
-      self.remove_falling_piece()
-      
-      if self.can_falling_piece_move(self.falling_piece.center_x + 1, self.falling_piece.center_y):
-         self.falling_piece.center_x += 1 
-      
-      self.put_falling_piece()
+      if self.can_move_falling_piece(self.falling_piece.center_x + 1, self.falling_piece.center_y):
+         self.move_falling_piece(self.falling_piece.center_x + 1, self.falling_piece.center_y)
       self.raise_on_playfield_updated_event()
 
    def rotate_left(self) -> None:
-      self.remove_falling_piece()
-      
+      self.remove_falling_piece()     
       self.falling_piece.rotate_left()
-      if not self.can_falling_piece_move(self.falling_piece.center_x, self.falling_piece.center_y):
+      if not self.can_move_falling_piece(self.falling_piece.center_x, self.falling_piece.center_y):
          self.falling_piece.rotate_right()
-      
       self.put_falling_piece()
       self.raise_on_playfield_updated_event()
 
    def rotate_right(self) -> None:
       self.remove_falling_piece()
-      
       self.falling_piece.rotate_right()
-      if not self.can_falling_piece_move(self.falling_piece.center_x, self.falling_piece.center_y):
+      if not self.can_move_falling_piece(self.falling_piece.center_x, self.falling_piece.center_y):
          self.falling_piece.rotate_left()
-      
       self.put_falling_piece()
       self.raise_on_playfield_updated_event()
 
@@ -335,5 +343,5 @@ class TetrisEngine:
       self.raise_on_playfield_updated_event()
 
    def set_falling_piece(self, shape :TetrominoShape) -> None:
-      for x, y in self.falling_piece.get_absolute_coordinates(self.falling_piece.center_x, self.falling_piece.center_y):
+      for x, y in self.falling_piece.get_current_absolute_coordinates():
          self.playfield.set_block(x, y, shape)
