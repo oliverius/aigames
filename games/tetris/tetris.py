@@ -12,9 +12,13 @@ class Window(tk.Tk):
 
         self.lines_cleared_text = tk.StringVar()
         self.reset_lines_cleared_counter()
-
         lines_cleared_label = ttk.Label(self, textvariable=self.lines_cleared_text)
         lines_cleared_label.place(x=20, y=480)
+
+        self.game_over_text = tk.StringVar()
+        self.game_over_text.set("")
+        game_over_label = ttk.Label(self, textvariable=self.game_over_text)
+        game_over_label.place(x=170, y=480)
 
         exit_button = ttk.Button(self, text="Exit", command=self.exit)
         exit_button.place(x=20, y=520)
@@ -53,12 +57,14 @@ class Window(tk.Tk):
 
     def game_over(self) -> None:
         self.is_game_over = True
+        self.game_over_text.set("Game over")
    
     def new_game(self) -> None:
         self.is_game_over = False # Needed because we always had one more call to execute_gravity, starting the timer again
         
         self.stop_timer()
         self.reset_lines_cleared_counter()
+        self.game_over_text.set("")
         self.focus_set() # This is important to avoid the button "new game" on focus when we press space bar while playing
 
         self.tetris_engine.run()
@@ -95,7 +101,7 @@ class Window(tk.Tk):
         self.lines_cleared_text.set(f"Lines cleared: {self.total_lines_cleared}")
 
     def update_playfield(self):
-        self.playfield_screen.draw(self.tetris_engine.playfield.grid)
+        self.playfield_screen.draw(self.tetris_engine.visible_playfield.grid)
 
 class PlayfieldScreen(tk.Canvas):
     def __init__(self, master, grid_width: int, grid_height: int, background_color :str, tetrominoes: any, **kwargs):
