@@ -16,7 +16,7 @@ import random
 
 @unique
 class TetrominoColor(Enum):
-    NONE = "#F4F0EC"     # Isabelline 
+    NONE = "#F4F0EC"     # Isabelline TODO remove it from this list as we use it only in PlayfieldScreen
     BLUE = "#325BBA"     # Dark cornflower blue
     CYAN = "#188BC2"     # Cyan cornflower blue
     PURPLE = "#915C83"   # Antique fuchsia
@@ -113,10 +113,14 @@ config = {
         "width": 10,
         "height": 20,
         "background_color": "grey",
+        "empty_block_color": "white", # TODO take it from Shape.NONE
         "falling_piece": {
             "starting_x": 5,
             "starting_y": 19,
             "gravity_speed": 2000
+        },
+        "ghost_falling_piece": {
+            "halo_color": "white" # TODO implement
         }
     }
 }
@@ -127,6 +131,10 @@ class Playfield:
         self.width = width
         self.height = height
         self.clear()
+
+    def get_grid_coordinates(self, x :int, y :int) -> list:
+        """ Coordinate system with (x,y) = (1,1) as left-bottom corner """
+        return [x - 1, self.height - y]
 
     def clear(self) -> None:
         self.grid = [[str(TetrominoShape.NONE)] * self.width for y in range(self.height)]
@@ -148,7 +156,8 @@ class Playfield:
         return lines_cleared
 
     def get_block(self, x: int, y: int) -> str:
-        return self.grid[self.height - y][x - 1] # Coordinate system with (x,y) = (1,1) as left-bottom corner
+        [grid_x, grid_y] = self.get_grid_coordinates(x, y)
+        return self.grid[grid_y][grid_x]
 
     def is_block_available(self, x: int, y: int) -> bool:
         """
@@ -164,7 +173,8 @@ class Playfield:
         return 1 <= x <= self.width and 1 <= y <= self.height
 
     def set_block(self, x: int, y: int, shape: TetrominoShape) -> None:
-        self.grid[self.height - y][x - 1] = str(shape) # Coordinate system with (x,y) = (1,1) as left-bottom corner
+        [grid_x, grid_y] = self.get_grid_coordinates(x, y)
+        self.grid[grid_y][grid_x] = str(shape)
 
 class FallingPiece:
 
@@ -317,8 +327,17 @@ class TetrisEngine:
         # merge together the playfield with the falling piece into a playfield we can send to the UI
         self.visible_playfield.grid = [row[:] for row in self.playfield.grid]
         self.set_falling_piece(self.visible_playfield)
+        ghost_dropped_piece_coordinates = [
+            self.playfield.get_grid_coordinates(x,y) for x, y in self.get_ghost_dropped_piece_coordinates()]
 
-        self.event_bindings[TetrisEngine.Events.ON_PLAYFIELD_UPDATED]()
+        self.event_bindings[TetrisEngine.Events.ON_PLAYFIELD_UPDATED](ghost_dropped_piece_coordinates)
+
+    def get_ghost_dropped_piece_coordinates(self) -> list:
+        center_x = self.falling_piece.center_x
+        center_y = self.falling_piece.center_y
+        while self.can_move_falling_piece(center_x, center_y - 1):
+            center_y -= 1
+        return self.falling_piece.get_absolute_coordinates(center_x, center_y)
 
     def run(self) -> None:
         self.playfield.clear()

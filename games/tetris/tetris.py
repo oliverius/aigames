@@ -100,8 +100,8 @@ class Window(tk.Tk):
         self.total_lines_cleared += lines_cleared
         self.lines_cleared_text.set(f"Lines cleared: {self.total_lines_cleared}")
 
-    def update_playfield(self):
-        self.playfield_screen.draw(self.tetris_engine.visible_playfield.grid)
+    def update_playfield(self, ghost_dropped_piece_coordinates :list):
+        self.playfield_screen.draw(self.tetris_engine.visible_playfield.grid, ghost_dropped_piece_coordinates)
 
 class PlayfieldScreen(tk.Canvas):
     def __init__(self, master, grid_width: int, grid_height: int, background_color :str, tetrominoes: any, **kwargs):
@@ -128,7 +128,7 @@ class PlayfieldScreen(tk.Canvas):
         for tetromino in tetrominoes:
             self.colors_by_shape[str(tetromino["shape"])] = str(tetromino["color"])
 
-    def draw(self, grid :list) -> None:
+    def draw(self, grid :list, ghost_dropped_piece_coordinates = []) -> None:
         # The right thing to do is to tag each block and redraw only the ones that are different
         # i.e. different color. See this answer from comments: https://stackoverflow.com/a/15840231
         # But due to the simplicity of our grid and since I can't see any slowdown due to this,
@@ -136,6 +136,7 @@ class PlayfieldScreen(tk.Canvas):
         self.delete("all")
         self.draw_well()
         self.draw_grid(grid)
+        self.draw_ghost_dropped_piece(ghost_dropped_piece_coordinates)
 
     def clear(self) -> None:
         self.draw([[str(TetrominoShape.NONE)] * self.grid_width for y in range(self.grid_height)])
@@ -145,6 +146,13 @@ class PlayfieldScreen(tk.Canvas):
         y = self.grid_x0 + grid_y * (self.block_length + self.block_length_gap)
         color = self.colors_by_shape[shape]
         self.create_rectangle( (x, y, x + self.block_length, y + self.block_length), outline="black", fill=color)
+
+    def draw_ghost_dropped_piece(self, ghost_dropped_piece_coordinates :list) -> None:
+        for grid_x, grid_y in ghost_dropped_piece_coordinates:
+            x = self.grid_x0 + grid_x * (self.block_length + self.block_length_gap)
+            y = self.grid_x0 + grid_y * (self.block_length + self.block_length_gap)
+            color = "black"
+            self.create_rectangle( (x+2, y+2, x + self.block_length-2, y + self.block_length-2), outline =color,fill="#D0D0D0")
 
     def draw_grid(self, grid :list) -> None:
         for y in range(self.grid_height):
