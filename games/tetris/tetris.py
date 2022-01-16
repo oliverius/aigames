@@ -8,7 +8,7 @@ class Window(tk.Tk):
         super().__init__()
 
         self.title("AI Games - Tetris")
-        self.geometry("264x560")
+        self.geometry("264x580")
 
         self.lines_cleared_text = tk.StringVar()
         self.reset_lines_cleared_counter()
@@ -20,11 +20,18 @@ class Window(tk.Tk):
         game_over_label = ttk.Label(self, textvariable=self.game_over_text)
         game_over_label.place(x=170, y=480)
 
+        self.show_ghost_dropped_piece_checkbutton_value = tk.IntVar(value=1)
+        show_ghost_dropped_piece_checkbutton = ttk.Checkbutton(self,
+            text="Show ghost dropped piece",
+            variable=self.show_ghost_dropped_piece_checkbutton_value,
+            command=self.show_ghost)
+        show_ghost_dropped_piece_checkbutton.place(x=20, y=500)
+
         exit_button = ttk.Button(self, text="Exit", command=self.exit)
-        exit_button.place(x=20, y=520)
+        exit_button.place(x=20, y=540)
 
         new_game_button = ttk.Button(self, text="New game", command=self.new_game)
-        new_game_button.place(x=100, y=520)
+        new_game_button.place(x=170, y=540)
 
         self.bind('<KeyPress>', self.on_key_down)
 
@@ -88,19 +95,28 @@ class Window(tk.Tk):
         elif key == "x":
             self.tetris_engine.rotate_right()
 
-    def stop_timer(self) -> None:
-        if self.gravity_timer:
-            self.after_cancel(self.gravity_timer)
-
     def reset_lines_cleared_counter(self) -> None:
         self.total_lines_cleared = 0
         self.update_lines_cleared_counter(0)
+
+    def show_ghost(self) -> None:
+        self.focus_set()
+        if self.show_ghost_dropped_piece_checkbutton_value.get() == 0:
+            self.update_playfield([])
+            # It doesn't wait for next update to the playfield (after the timer)
+            # to show the ghost piece or not, this feels more responsive
+
+    def stop_timer(self) -> None:
+        if self.gravity_timer:
+            self.after_cancel(self.gravity_timer)
 
     def update_lines_cleared_counter(self, lines_cleared :int):
         self.total_lines_cleared += lines_cleared
         self.lines_cleared_text.set(f"Lines cleared: {self.total_lines_cleared}")
 
     def update_playfield(self, ghost_dropped_piece_coordinates :list):
+        if self.show_ghost_dropped_piece_checkbutton_value.get() == 0:
+            ghost_dropped_piece_coordinates = []
         self.playfield_screen.draw(self.tetris_engine.visible_playfield.grid, ghost_dropped_piece_coordinates)
 
 class PlayfieldScreen(tk.Canvas):
@@ -124,7 +140,7 @@ class PlayfieldScreen(tk.Canvas):
 
     def build_color_dictionary(self, tetrominoes :any) -> None:
         self.colors_by_shape = {}
-        self.colors_by_shape[" "] = str(TetrominoColor.NONE)
+        self.colors_by_shape[str(TetrominoShape.NONE)] = str(TetrominoColor.NONE)
         for tetromino in tetrominoes:
             self.colors_by_shape[str(tetromino["shape"])] = str(tetromino["color"])
 
@@ -148,11 +164,16 @@ class PlayfieldScreen(tk.Canvas):
         self.create_rectangle( (x, y, x + self.block_length, y + self.block_length), outline="black", fill=color)
 
     def draw_ghost_dropped_piece(self, ghost_dropped_piece_coordinates :list) -> None:
+        if not ghost_dropped_piece_coordinates:
+            return
+        inset_px = 2
         for grid_x, grid_y in ghost_dropped_piece_coordinates:
             x = self.grid_x0 + grid_x * (self.block_length + self.block_length_gap)
             y = self.grid_x0 + grid_y * (self.block_length + self.block_length_gap)
             color = "black"
-            self.create_rectangle( (x+2, y+2, x + self.block_length-2, y + self.block_length-2), outline =color,fill="#D0D0D0")
+            self.create_rectangle(
+                (x + inset_px, y + inset_px, x + self.block_length - inset_px, y + self.block_length - inset_px),
+                outline=color, fill="#D0D0D0")
 
     def draw_grid(self, grid :list) -> None:
         for y in range(self.grid_height):

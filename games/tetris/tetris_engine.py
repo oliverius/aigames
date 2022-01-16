@@ -16,7 +16,7 @@ import random
 
 @unique
 class TetrominoColor(Enum):
-    NONE = "#F4F0EC"     # Isabelline TODO remove it from this list as we use it only in PlayfieldScreen
+    NONE = "#F4F0EC"     # Isabelline
     BLUE = "#325BBA"     # Dark cornflower blue
     CYAN = "#188BC2"     # Cyan cornflower blue
     PURPLE = "#915C83"   # Antique fuchsia
@@ -113,14 +113,10 @@ config = {
         "width": 10,
         "height": 20,
         "background_color": "grey",
-        "empty_block_color": "white", # TODO take it from Shape.NONE
         "falling_piece": {
             "starting_x": 5,
             "starting_y": 19,
             "gravity_speed": 2000
-        },
-        "ghost_falling_piece": {
-            "halo_color": "white" # TODO implement
         }
     }
 }
