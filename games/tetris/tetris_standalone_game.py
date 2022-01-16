@@ -103,7 +103,7 @@ class Window(tk.Tk):
     def show_ghost(self) -> None:
         self.focus_set()
         if self.show_ghost_dropped_piece_checkbutton_value.get() == 0:
-            self.update_playfield([])
+            self.update_playfield()
             # It doesn't wait for next update to the playfield (after the timer)
             # to show the ghost piece or not, this feels more responsive
 
@@ -115,9 +115,11 @@ class Window(tk.Tk):
         self.total_lines_cleared += lines_cleared
         self.lines_cleared_text.set(f"Lines cleared: {self.total_lines_cleared}")
 
-    def update_playfield(self, ghost_dropped_piece_coordinates :list):
+    def update_playfield(self):
         if self.show_ghost_dropped_piece_checkbutton_value.get() == 0:
             ghost_dropped_piece_coordinates = []
+        else:
+            ghost_dropped_piece_coordinates = self.tetris_engine.ghost_dropped_piece_coordinates
         self.playfield_screen.draw(self.tetris_engine.playfield_with_falling_piece.grid, ghost_dropped_piece_coordinates)
 
 class PlayfieldScreen(tk.Canvas):

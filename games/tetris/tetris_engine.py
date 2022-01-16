@@ -232,7 +232,8 @@ class TetrisEngine:
     def __init__(self) -> None:
         self.playfield = Playfield(config["playfield"]["width"], config["playfield"]["height"])
         self.playfield_with_falling_piece = Playfield(config["playfield"]["width"], config["playfield"]["height"])
-        
+        self.ghost_dropped_piece_coordinates = []
+
         next_shape = self.get_next_shape()
         self.falling_piece = FallingPiece(next_shape)
 
@@ -327,10 +328,10 @@ class TetrisEngine:
         # merge together the playfield with the falling piece into a playfield we can send to the UI
         self.playfield_with_falling_piece.grid = [row[:] for row in self.playfield.grid]
         self.set_falling_piece(self.playfield_with_falling_piece)
-        ghost_dropped_piece_coordinates = [
+        self.ghost_dropped_piece_coordinates = [
             self.playfield.get_grid_coordinates(x,y) for x, y in self.get_ghost_dropped_piece_coordinates()]
 
-        self.event_bindings[TetrisEngine.Events.ON_PLAYFIELD_UPDATED](ghost_dropped_piece_coordinates)
+        self.event_bindings[TetrisEngine.Events.ON_PLAYFIELD_UPDATED]()
 
     def get_ghost_dropped_piece_coordinates(self) -> list:
         center_x = self.falling_piece.center_x
