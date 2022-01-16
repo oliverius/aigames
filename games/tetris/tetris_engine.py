@@ -111,12 +111,13 @@ config = {
     ],
     "playfield": {
         "width": 10,
-        "height": 20,
+        "height": 22,
+        "hidden_top_rows": 2,
         "background_color": "grey",
         "falling_piece": {
             "starting_x": 5,
-            "starting_y": 19,
-            "gravity_speed": 2000
+            "starting_y": 20,
+            "gravity_speed": 2000 # ms
         }
     }
 }
@@ -129,7 +130,10 @@ class Playfield:
         self.clear()
 
     def get_grid_coordinates(self, x :int, y :int) -> list:
-        """ Coordinate system with (x,y) = (1,1) as left-bottom corner """
+        """
+        Playfield coordinates to internal grid coordinates
+        Playfield (x,y) = (1,1) is the left bottom corner
+        """
         return [x - 1, self.height - y]
 
     def clear(self) -> None:
@@ -227,7 +231,7 @@ class TetrisEngine:
 
     def __init__(self) -> None:
         self.playfield = Playfield(config["playfield"]["width"], config["playfield"]["height"])
-        self.visible_playfield = Playfield(config["playfield"]["width"], config["playfield"]["height"])
+        self.playfield_with_falling_piece = Playfield(config["playfield"]["width"], config["playfield"]["height"])
         
         next_shape = self.get_next_shape()
         self.falling_piece = FallingPiece(next_shape)
@@ -321,8 +325,8 @@ class TetrisEngine:
 
     def raise_on_playfield_updated_event(self) -> None:
         # merge together the playfield with the falling piece into a playfield we can send to the UI
-        self.visible_playfield.grid = [row[:] for row in self.playfield.grid]
-        self.set_falling_piece(self.visible_playfield)
+        self.playfield_with_falling_piece.grid = [row[:] for row in self.playfield.grid]
+        self.set_falling_piece(self.playfield_with_falling_piece)
         ghost_dropped_piece_coordinates = [
             self.playfield.get_grid_coordinates(x,y) for x, y in self.get_ghost_dropped_piece_coordinates()]
 
@@ -335,7 +339,7 @@ class TetrisEngine:
             center_y -= 1
         return self.falling_piece.get_absolute_coordinates(center_x, center_y)
 
-    def run(self) -> None:
+    def new_game(self) -> None:
         self.playfield.clear()
         self.falling_piece.set_starting_position()
         self.raise_on_playfield_updated_event()

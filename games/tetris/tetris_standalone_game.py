@@ -44,6 +44,7 @@ class Window(tk.Tk):
             config["playfield"]["width"],
             config["playfield"]["height"],
             config["playfield"]["background_color"],
+            config["playfield"]["hidden_top_rows"],
             config["tetrominoes"])
         self.playfield_screen.place(x=20, y=20)
 
@@ -74,7 +75,7 @@ class Window(tk.Tk):
         self.game_over_text.set("")
         self.focus_set() # This is important to avoid the button "new game" on focus when we press space bar while playing
 
-        self.tetris_engine.run()
+        self.tetris_engine.new_game()
         
         self.execute_gravity()
 
@@ -117,10 +118,10 @@ class Window(tk.Tk):
     def update_playfield(self, ghost_dropped_piece_coordinates :list):
         if self.show_ghost_dropped_piece_checkbutton_value.get() == 0:
             ghost_dropped_piece_coordinates = []
-        self.playfield_screen.draw(self.tetris_engine.visible_playfield.grid, ghost_dropped_piece_coordinates)
+        self.playfield_screen.draw(self.tetris_engine.playfield_with_falling_piece.grid, ghost_dropped_piece_coordinates)
 
 class PlayfieldScreen(tk.Canvas):
-    def __init__(self, master, grid_width: int, grid_height: int, background_color :str, tetrominoes: any, **kwargs):
+    def __init__(self, master, grid_width: int, grid_height: int, background_color :str, hidden_top_rows :int, tetrominoes: any, **kwargs):
         self.width = 224
         self.height = 444
         self.background = background_color
@@ -128,6 +129,7 @@ class PlayfieldScreen(tk.Canvas):
 
         self.grid_width = grid_width
         self.grid_height = grid_height
+        self.hidden_top_rows = hidden_top_rows
 
         self.grid_x0 = 4
         self.grid_y0 = 4
@@ -168,18 +170,20 @@ class PlayfieldScreen(tk.Canvas):
             return
         inset_px = 2
         for grid_x, grid_y in ghost_dropped_piece_coordinates:
+            visible_grid_y = grid_y - self.hidden_top_rows
             x = self.grid_x0 + grid_x * (self.block_length + self.block_length_gap)
-            y = self.grid_x0 + grid_y * (self.block_length + self.block_length_gap)
+            y = self.grid_x0 + visible_grid_y * (self.block_length + self.block_length_gap)
             color = "black"
             self.create_rectangle(
                 (x + inset_px, y + inset_px, x + self.block_length - inset_px, y + self.block_length - inset_px),
                 outline=color, fill="#D0D0D0")
 
     def draw_grid(self, grid :list) -> None:
-        for y in range(self.grid_height):
+        for y in range(self.hidden_top_rows, self.grid_height):
             for x in range(self.grid_width):
                 shape = grid[y][x]
-                self.draw_block(x, y, shape)
+                visible_y = y - self.hidden_top_rows
+                self.draw_block(x, visible_y, shape)
 
     def draw_well(self):
         self.create_line(3, 0, 3, self.height, width=self.well_border_width, fill="black") # TODO why not 0 instead of 3 pixels to the right?
