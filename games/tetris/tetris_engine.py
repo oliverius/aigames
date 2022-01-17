@@ -248,6 +248,24 @@ class TetrisEngine:
             for x, y in self.falling_piece.get_absolute_coordinates(new_center_x, new_center_y)
         ])
 
+    def can_rotate_left(self) -> bool:
+        self.falling_piece.rotate_left()
+        if self.can_move_falling_piece(self.falling_piece.center_x, self.falling_piece.center_y):
+            self.falling_piece.rotate_right()
+            return True
+        else:
+            self.falling_piece.rotate_right()
+            return True
+
+    def can_rotate_right(self) -> bool:
+        self.falling_piece.rotate_right()
+        if self.can_move_falling_piece(self.falling_piece.center_x, self.falling_piece.center_y):
+            self.falling_piece.rotate_left()
+            return True
+        else:
+            self.falling_piece.rotate_left()
+            return False
+
     def drop(self) -> None:
         while self.can_move_falling_piece(self.falling_piece.center_x, self.falling_piece.center_y - 1):
             self.move_falling_piece(self.falling_piece.center_x, self.falling_piece.center_y - 1)
