@@ -1,3 +1,4 @@
+import random
 from tetris_engine import TetrisEngine
 
 """
@@ -20,13 +21,49 @@ drop it and we made 2 lines
 
 class TetrisAgent(TetrisEngine):
     def __init__(self) -> None:
+        random.seed(7) # Important here so we will have always the same first falling piece for our tests. This starts with an L
+        # This has to be done before super_init because there we choose already the first piece.
         super().__init__()
-        super().bind_event(TetrisEngine.Events.ON_PLAYFIELD_UPDATED, self.update_playfield)
-        super().bind_event(TetrisEngine.Events.ON_LINES_CLEARED, self.update_lines_cleared_counter)
-        super().bind_event(TetrisEngine.Events.ON_GAME_OVER, self.game_over)
+        self.bind_event(TetrisEngine.Events.ON_PLAYFIELD_UPDATED, self.update_playfield) # TODO with lambdas kitchen sink
+        self.bind_event(TetrisEngine.Events.ON_LINES_CLEARED, self.update_lines_cleared_counter)
+        self.bind_event(TetrisEngine.Events.ON_GAME_OVER, self.game_over)
 
-    def new_game(self) -> None:
+        self.state = {}
+
+    def start_new_game(self) -> None:
         # we try every possible combination for the current piece from the top
+        self.new_game()
+        
+
+        fp = self.falling_piece
+        starting_x = self.falling_piece.center_x
+        starting_y = self.falling_piece.center_y
+        print(fp.shape)
+
+        # Starting point
+        self.save_state()
+        self.falling_piece.set_starting_position()
+        while self.can_move_falling_piece(self.falling_piece.center_x, self.falling_piece.center_y - 1):
+            self.move_falling_piece(self.falling_piece.center_x, self.falling_piece.center_y - 1)
+        self.set_falling_piece(self.playfield)
+        lines_cleared = self.playfield.clear_full_lines()
+        self.calculate_heuristics(lines_cleared, self.playfield.grid)
+        self.restore_state()
+
+        # From center, move left as much as we can
+        x = starting_x
+        y = starting_y
+        while self.can_move_falling_piece(x-1, y):
+            x -= 1
+            print("hello")
+
+        # From center, move right as much as we can
+        x = starting_x
+        y = starting_y
+        while self.can_move_falling_piece(x+1, y):
+            x += 1
+            print("goodbye")
+
 
         # algorithm
         # where we put the piece, drop the piece
@@ -37,6 +74,9 @@ class TetrisAgent(TetrisEngine):
         # gather all the fitting algorithms and see which one is better. That would be the correct move
         pass
     
+    def get_final_grid(self, falling_piece_center_x :int, falling_piece_center_y :int, starting_grid :list) -> list:
+        pass
+
     def get_playfield_statistics(self):
         # TODO how tall the blocks reach in a current playfield -> minimize
         # how many lines I do -> maximize
@@ -46,11 +86,11 @@ class TetrisAgent(TetrisEngine):
         # and more (research about it)
         pass
 
-    def calculate_heuristics(self):
+    def calculate_heuristics(self, lines_cleared :int, grid :list):
         # our fitting algorithm
         pass
 
-    def update_playfield(self, ghost_dropped_piece_coordinates :list):
+    def update_playfield(self):
         # We only care about this to see what's going on but it won't affect our calculations
         pass
 
@@ -60,3 +100,20 @@ class TetrisAgent(TetrisEngine):
     def game_over(self):
         pass
 
+    def restore_state(self):
+        self.playfield.grid = self.state["grid"]
+        self.falling_piece.center_x = self.state["center_x"]
+        self.falling_piece.center_y = self.state["center_y"]
+        self.falling_piece.set_shape(self.state["shape"])
+        self.falling_piece.set_angle(self.state["angle"])
+
+    def save_state(self):
+        self.state["grid"] = self.playfield.grid
+        self.state["center_x"] = self.falling_piece.center_x
+        self.state["center_y"] = self.falling_piece.center_y
+        self.state["shape"] = self.falling_piece.shape
+        self.state["angle"] = self.falling_piece.angle        
+
+if __name__ == "__main__":
+    agent = TetrisAgent()
+    agent.start_new_game()
