@@ -1,3 +1,4 @@
+from enum import Enum, unique
 import random
 from tetris_engine import TetrisEngine
 
@@ -20,6 +21,17 @@ drop it and we made 2 lines
 """
 
 class TetrisAgent(TetrisEngine):
+
+    @unique
+    class GameAction(Enum):
+        MOVE_LEFT       = "🡰"
+        MOVE_RIGHT      = "🡲"
+        ROTATE_LEFT     = "↶"
+        ROTATE_RIGHT    = "↷"
+        DROP            = "⟱"
+        def __str__(self) -> str:
+            return self.value
+
     def __init__(self) -> None:
         random.seed(7) # Important here so we will have always the same first falling piece for our tests. This starts with an L
         # This has to be done before super_init because there we choose already the first piece.
@@ -29,40 +41,70 @@ class TetrisAgent(TetrisEngine):
         self.bind_event(TetrisEngine.Events.ON_GAME_OVER, self.game_over)
 
         self.state = {}
+        self.possible_movements = [] # TODO
+
+    def get_possible_drop_movements_sequence(self) -> None:
+        ga = self.GameAction
+
+        starting_position_sequence = [
+            [ ga.DROP ],
+            [ ga.ROTATE_LEFT, ga.DROP ],
+            [ ga.ROTATE_LEFT, ga.ROTATE_LEFT, ga.DROP ],
+            [ ga.ROTATE_LEFT, ga.ROTATE_LEFT, ga.ROTATE_LEFT, ga.DROP ]
+        ]
+        
+        possible_drop_movements_sequence = starting_position_sequence.copy()
+        
+        moving_left_sequence = []
+        moving_right_sequence = []
+        movements_each_side = self.playfield.width // 2
+        for _ in range(movements_each_side):
+            moving_left_sequence += [ ga.MOVE_LEFT]
+            moving_right_sequence += [ ga.MOVE_RIGHT]
+            possible_drop_movements_sequence += list(map(lambda seq: moving_left_sequence + seq, starting_position_sequence))
+            possible_drop_movements_sequence += list(map(lambda seq: moving_right_sequence + seq, starting_position_sequence))
+
+        for seq in possible_drop_movements_sequence:
+            for value in seq:
+                print(str(value),end=" ")
+            print(" ")
+
+        return possible_drop_movements_sequence
 
     def start_new_game(self) -> None:
         # we try every possible combination for the current piece from the top
         self.new_game()
         
+        print(self.falling_piece)
 
-        fp = self.falling_piece
-        starting_x = self.falling_piece.center_x
-        starting_y = self.falling_piece.center_y
-        print(fp.shape)
+        #self.search_possible_movements()
+        self.get_possible_drop_movements_sequence()
 
         # Starting point
-        self.save_state()
-        self.falling_piece.set_starting_position()
-        while self.can_move_falling_piece(self.falling_piece.center_x, self.falling_piece.center_y - 1):
-            self.move_falling_piece(self.falling_piece.center_x, self.falling_piece.center_y - 1)
-        self.set_falling_piece(self.playfield)
-        lines_cleared = self.playfield.clear_full_lines()
-        self.calculate_heuristics(lines_cleared, self.playfield.grid)
-        self.restore_state()
+        # self.save_state()
+        # self.falling_piece.set_starting_position()
+        # self.set_falling_piece(self.playfield)
+        # lines_cleared = self.playfield.clear_full_lines()
+        # self.calculate_heuristics(lines_cleared, self.playfield.grid)
+        # self.restore_state()
 
-        # From center, move left as much as we can
-        x = starting_x
-        y = starting_y
-        while self.can_move_falling_piece(x-1, y):
-            x -= 1
-            print("hello")
+        # while self.can_move_falling_piece(self.falling_piece.center_x, self.falling_piece.center_y - 1):
+        #     self.move_falling_piece(self.falling_piece.center_x, self.falling_piece.center_y - 1)
 
-        # From center, move right as much as we can
-        x = starting_x
-        y = starting_y
-        while self.can_move_falling_piece(x+1, y):
-            x += 1
-            print("goodbye")
+        # # From center, move left as much as we can
+        # x = starting_x
+        # y = starting_y
+        # while self.can_move_falling_piece(x-1, y):
+        #     x -= 1
+        #     print("hello")
+
+        # # From center, move right as much as we can
+        # x = starting_x
+        # y = starting_y
+        # while self.can_move_falling_piece(x+1, y):
+        #     x += 1
+        #     print("goodbye")
+
 
 
         # algorithm
@@ -73,7 +115,14 @@ class TetrisAgent(TetrisEngine):
         # move back to where we started and do the same procedure to the right
         # gather all the fitting algorithms and see which one is better. That would be the correct move
         pass
-    
+
+    def search_possible_movements(self):
+        self.save_state()
+        for rotation in range(4):
+            if self.can_rotate_left():
+                self.falling_piece.rotate_left()
+        self.restore_state()
+
     def get_final_grid(self, falling_piece_center_x :int, falling_piece_center_y :int, starting_grid :list) -> list:
         pass
 
