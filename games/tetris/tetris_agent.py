@@ -111,9 +111,9 @@ class TetrisAgent(TetrisEngine):
 
         ga = self.GameAction
         sequence_length = len(sequence)
-        abort_sequence = False
+        can_move = True
         i = 0
-        while i<sequence_length or abort_sequence:
+        while i<sequence_length and can_move:
 
             if sequence[i] == ga.DROP:
                 print("drop") # check if can drop. if not, it is game over
@@ -122,24 +122,24 @@ class TetrisAgent(TetrisEngine):
                     print("GAME OVER, get out of here") # TODO in different method
         
             elif sequence[i] == ga.MOVE_LEFT:                
-                abort_sequence = not self.move_left()
+                can_move = self.move_left()
                 print("move left")
                 
             elif sequence[i] == ga.MOVE_RIGHT:
-                abort_sequence = not self.move_right()
+                can_move = self.move_right()
                 print("move right")
 
             elif sequence[i] == ga.ROTATE_LEFT:
-                abort_sequence = not self.rotate_left()
+                can_move = self.rotate_left()
                 print("rotate left")
 
             elif sequence[i] == ga.ROTATE_RIGHT:
-                abort_sequence = not self.rotate_right()
+                can_move = self.rotate_right()
                 print("rotate right") 
 
             i += 1
 
-        return not abort_sequence # If we didn't need to abort it will return True
+        return can_move
         
 
     def get_playfield_statistics(self):
@@ -168,14 +168,14 @@ class TetrisAgent(TetrisEngine):
         print("I reached game over") # TODO remove
 
     def restore_state(self):
-        self.playfield.grid = self.state["grid"]
+        self.playfield.grid = [ row[:] for row in self.state["grid"] ]
         self.falling_piece.center_x = self.state["center_x"]
         self.falling_piece.center_y = self.state["center_y"]
         self.falling_piece.set_shape(self.state["shape"])
         self.falling_piece.set_angle(self.state["angle"])
 
     def save_state(self):
-        self.state["grid"] = self.playfield.grid
+        self.state["grid"] = [ row[:] for row in self.playfield.grid ]
         self.state["center_x"] = self.falling_piece.center_x
         self.state["center_y"] = self.falling_piece.center_y
         self.state["shape"] = self.falling_piece.shape
