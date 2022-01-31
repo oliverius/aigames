@@ -42,8 +42,15 @@ class TetrisAgent(TetrisEngine):
 
         self.state = {}
         self.possible_movements = [] # TODO
+        # TODO enable/disable events while calculating posibilities
 
     def get_possible_drop_movements_sequence(self) -> None:
+        """
+        It is important that the first possible sequence is just "drop".
+
+        If we are not even able to even "drop" it means that we can't put any more pieces
+        and therefore it is game over.
+        """
         ga = self.GameAction
 
         starting_position_sequence = [
@@ -60,71 +67,80 @@ class TetrisAgent(TetrisEngine):
         movements_each_side = self.playfield.width // 2
         for _ in range(movements_each_side):
             moving_left_sequence += [ ga.MOVE_LEFT]
-            moving_right_sequence += [ ga.MOVE_RIGHT]
             possible_drop_movements_sequence += list(map(lambda seq: moving_left_sequence + seq, starting_position_sequence))
+            moving_right_sequence += [ ga.MOVE_RIGHT]
             possible_drop_movements_sequence += list(map(lambda seq: moving_right_sequence + seq, starting_position_sequence))
-
-        for seq in possible_drop_movements_sequence:
-            for value in seq:
-                print(str(value),end=" ")
-            print(" ")
 
         return possible_drop_movements_sequence
 
+    def print_sequence(self, sequence :list): # TODO remove this function
+        for value in sequence:
+            print(str(value),end=" ")
+        print("")
+
     def start_new_game(self) -> None:
-        # we try every possible combination for the current piece from the top
         self.new_game()
+        self.save_state() # TODO save state when we get a new piece as well       
         
         print(self.falling_piece)
+        
+        possible_sequences = self.get_possible_drop_movements_sequence()
+        ga = self.GameAction
+        for sequence in possible_sequences: #TODO do it for all sequences
+            self.restore_state() # Always start from the beginning
 
-        #self.search_possible_movements()
-        self.get_possible_drop_movements_sequence()
+            self.is_game_over = False
+            self.lines_cleared = 0
+            
+            result = self.can_play_sequence(sequence)
+            sequence_string = ' '.join([str(x) for x in sequence])
+            print(f'Sequence:  {sequence_string}  can be played: {result}')
+            print(self.playfield)
+                
+            #self.set_falling_piece()
+            #lines_cleared = self.playfield.clear_full_lines()
 
-        # Starting point
-        # self.save_state()
-        # self.falling_piece.set_starting_position()
-        # self.set_falling_piece(self.playfield)
-        # lines_cleared = self.playfield.clear_full_lines()
-        # self.calculate_heuristics(lines_cleared, self.playfield.grid)
-        # self.restore_state()
+    def can_play_sequence(self, sequence :list) -> bool:
+        """
+        Try all the movements in a sequence of movements.
 
-        # while self.can_move_falling_piece(self.falling_piece.center_x, self.falling_piece.center_y - 1):
-        #     self.move_falling_piece(self.falling_piece.center_x, self.falling_piece.center_y - 1)
+        If we can't reach the end of the sequence it means that the sequence is not valid and it will return false
+        """
+        
+        #self.print_sequence(sequence)
 
-        # # From center, move left as much as we can
-        # x = starting_x
-        # y = starting_y
-        # while self.can_move_falling_piece(x-1, y):
-        #     x -= 1
-        #     print("hello")
+        ga = self.GameAction
+        sequence_length = len(sequence)
+        abort_sequence = False
+        i = 0
+        while i<sequence_length or abort_sequence:
 
-        # # From center, move right as much as we can
-        # x = starting_x
-        # y = starting_y
-        # while self.can_move_falling_piece(x+1, y):
-        #     x += 1
-        #     print("goodbye")
+            if sequence[i] == ga.DROP:
+                print("drop") # check if can drop. if not, it is game over
+                self.drop()
+                if self.is_game_over:
+                    print("GAME OVER, get out of here") # TODO in different method
+        
+            elif sequence[i] == ga.MOVE_LEFT:                
+                abort_sequence = not self.move_left()
+                print("move left")
+                
+            elif sequence[i] == ga.MOVE_RIGHT:
+                abort_sequence = not self.move_right()
+                print("move right")
 
+            elif sequence[i] == ga.ROTATE_LEFT:
+                abort_sequence = not self.rotate_left()
+                print("rotate left")
 
+            elif sequence[i] == ga.ROTATE_RIGHT:
+                abort_sequence = not self.rotate_right()
+                print("rotate right") 
 
-        # algorithm
-        # where we put the piece, drop the piece
-        # get information about how many lines we would clear doing this and the statistics
-        # rotate the piece if possible, repeat the same information
-        # move to the left as much as we can and do the same
-        # move back to where we started and do the same procedure to the right
-        # gather all the fitting algorithms and see which one is better. That would be the correct move
-        pass
+            i += 1
 
-    def search_possible_movements(self):
-        self.save_state()
-        for rotation in range(4):
-            if self.can_rotate_left():
-                self.falling_piece.rotate_left()
-        self.restore_state()
-
-    def get_final_grid(self, falling_piece_center_x :int, falling_piece_center_y :int, starting_grid :list) -> list:
-        pass
+        return not abort_sequence # If we didn't need to abort it will return True
+        
 
     def get_playfield_statistics(self):
         # TODO how tall the blocks reach in a current playfield -> minimize
@@ -143,11 +159,13 @@ class TetrisAgent(TetrisEngine):
         # We only care about this to see what's going on but it won't affect our calculations
         pass
 
-    def update_lines_cleared_counter(self):
-        pass
+    def update_lines_cleared_counter(self, lines_cleared :int):
+        self.lines_cleared = lines_cleared
+        print("I have lines cleared")
 
     def game_over(self):
-        pass
+        self.is_game_over = True
+        print("I reached game over") # TODO remove
 
     def restore_state(self):
         self.playfield.grid = self.state["grid"]

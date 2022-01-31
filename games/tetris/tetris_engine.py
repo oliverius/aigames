@@ -176,6 +176,15 @@ class Playfield:
         [grid_x, grid_y] = self.get_grid_coordinates(x, y)
         self.grid[grid_y][grid_x] = str(shape)
 
+    def __str__(self) -> str:
+        """ Useful for debugging to dump to the command line the grid values """
+        grid = ""
+        for row in self.grid:
+            line = ""
+            for block in row:
+                line = line + " " + (block if block != str(TetrominoShape.NONE) else "•")
+            grid = grid + line + '\n'
+        return grid
 class FallingPiece:
 
     def __init__(self, shape :TetrominoShape) -> None:
@@ -238,33 +247,20 @@ class TetrisEngine:
         self.falling_piece = FallingPiece(next_shape)
 
         self.event_bindings = {}
+        self.enable_on_playfield_updated_event = True
+        self.enable_on_lines_cleared_event = True
+        self.enable_on_game_over_event = True
 
     def bind_event(self, event_name :Events, func:object) -> None:
         self.event_bindings[event_name] = func
+
+    # todo can_have_new_piece(self)
 
     def can_move_falling_piece(self, new_center_x :int, new_center_y :int) -> bool:
         return all([
             self.playfield.is_block_available(x, y)
             for x, y in self.falling_piece.get_absolute_coordinates(new_center_x, new_center_y)
         ])
-
-    def can_rotate_left(self) -> bool:
-        self.falling_piece.rotate_left()
-        if self.can_move_falling_piece(self.falling_piece.center_x, self.falling_piece.center_y):
-            self.falling_piece.rotate_right()
-            return True
-        else:
-            self.falling_piece.rotate_right()
-            return True
-
-    def can_rotate_right(self) -> bool:
-        self.falling_piece.rotate_right()
-        if self.can_move_falling_piece(self.falling_piece.center_x, self.falling_piece.center_y):
-            self.falling_piece.rotate_left()
-            return True
-        else:
-            self.falling_piece.rotate_left()
-            return False
 
     def drop(self) -> None:
         while self.can_move_falling_piece(self.falling_piece.center_x, self.falling_piece.center_y - 1):
@@ -273,13 +269,16 @@ class TetrisEngine:
         self.raise_on_playfield_updated_event()
 
     def get_next_piece_or_game_over(self) -> None:
-        next_shape = self.get_next_shape()
-        self.falling_piece.set_new_falling_piece(next_shape)
+        self.get_next_piece()
 
         if self.can_move_falling_piece(self.falling_piece.center_x, self.falling_piece.center_y):
             self.raise_on_playfield_updated_event()
         else:            
             self.raise_on_game_over_event()
+
+    def get_next_piece(self) -> None:
+        next_shape = self.get_next_shape()
+        self.falling_piece.set_new_falling_piece(next_shape)
 
     def get_next_shape(self) -> TetrominoShape:
         return random.choice([
@@ -302,6 +301,7 @@ class TetrisEngine:
         self.get_next_piece_or_game_over()
 
     def move_down(self) -> None:
+        """ It moves the falling piece down if it can (it returns true) otherwise it returns false """
         if self.can_move_falling_piece(self.falling_piece.center_x, self.falling_piece.center_y - 1):
             self.move_falling_piece(self.falling_piece.center_x, self.falling_piece.center_y - 1)
         else:
@@ -312,37 +312,57 @@ class TetrisEngine:
         self.falling_piece.center_x = new_center_x
         self.falling_piece.center_y = new_center_y
 
-    def move_left(self) -> None:
+    def move_left(self) -> bool:
+        """ It moves the falling piece to the left if it can (it returns true) otherwise it returns false """
         if self.can_move_falling_piece(self.falling_piece.center_x - 1, self.falling_piece.center_y):
             self.move_falling_piece(self.falling_piece.center_x - 1, self.falling_piece.center_y)
             self.raise_on_playfield_updated_event()
+            return True
+        else:
+            return False
 
-    def move_right(self) -> None:
+    def move_right(self) -> bool:
+        """ It moves the falling piece to the right if it can (it returns true) otherwise it returns false """
         if self.can_move_falling_piece(self.falling_piece.center_x + 1, self.falling_piece.center_y):
             self.move_falling_piece(self.falling_piece.center_x + 1, self.falling_piece.center_y)
             self.raise_on_playfield_updated_event()
+            return True
+        else:
+            return False
 
-    def rotate_left(self) -> None:
+    def rotate_left(self) -> bool:
+        """ It rotates the falling piece to the left if it can (it returns true) otherwise it returns false """
         self.falling_piece.rotate_left()
         if not self.can_move_falling_piece(self.falling_piece.center_x, self.falling_piece.center_y):
             self.falling_piece.rotate_right()
+            return False
         else:
             self.raise_on_playfield_updated_event()
+            return True
 
-    def rotate_right(self) -> None:
+    def rotate_right(self) -> bool:
+        """ It rotates the falling piece to the right if it can (it returns true) otherwise it returns false """
         self.falling_piece.rotate_right()
         if not self.can_move_falling_piece(self.falling_piece.center_x, self.falling_piece.center_y):
             self.falling_piece.rotate_left()
+            return False
         else:
             self.raise_on_playfield_updated_event()
+            return True
 
     def raise_on_game_over_event(self) -> None:
-        self.event_bindings[TetrisEngine.Events.ON_GAME_OVER]()
+        if self.enable_on_game_over_event:
+            self.event_bindings[TetrisEngine.Events.ON_GAME_OVER]()
 
     def raise_on_lines_cleared_event(self, lines :int) -> None:
-        self.event_bindings[TetrisEngine.Events.ON_LINES_CLEARED](lines)
+        if self.enable_on_lines_cleared_event:
+            self.event_bindings[TetrisEngine.Events.ON_LINES_CLEARED](lines)
 
     def raise_on_playfield_updated_event(self) -> None:
+        if not self.enable_on_playfield_updated_event:
+            return
+            
+        # print(str(self.playfield)) # for debugging
         # merge together the playfield with the falling piece into a playfield we can send to the UI
         self.playfield_with_falling_piece.grid = [row[:] for row in self.playfield.grid]
         self.set_falling_piece(self.playfield_with_falling_piece)
