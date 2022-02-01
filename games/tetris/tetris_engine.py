@@ -123,8 +123,14 @@ config = {
 }
 
 class Playfield:
-   
+    """
+    Playfield is a grid/board with the bottom row = first row
+
+    and the coordinates start on the left bottom corner (1,1)
+    """
     def __init__(self, width: int, height: int) -> None:
+        self.min_x = 1
+        self.min_y = 1
         self.width = width
         self.height = height
         self.clear()
@@ -175,7 +181,7 @@ class Playfield:
         return self.get_block(x, y) == str(TetrominoShape.NONE)
 
     def is_block_within_boundaries(self, x :int, y: int) -> bool:
-        return 1 <= x <= self.width and 1 <= y <= self.height
+        return self.min_x <= x <= self.width and self.min_y <= y <= self.height
 
     def set_block(self, x: int, y: int, shape: TetrominoShape) -> None:
         [grid_x, grid_y] = self.get_grid_coordinates(x, y)
