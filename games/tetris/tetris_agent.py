@@ -41,9 +41,10 @@ class TetrisAgent(TetrisEngine):
         self.bind_event(TetrisEngine.Events.ON_GAME_OVER, self.game_over)
 
         self.state = {}
+        self.is_game_over = False
         # TODO enable/disable events while calculating posibilities
 
-    def get_possible_drop_movements_sequence(self) -> None:
+    def get_possible_drop_movements_sequence(self) -> list[list[GameAction]]:
         """
         It is important that the first possible sequence is just "drop".
 
@@ -73,29 +74,47 @@ class TetrisAgent(TetrisEngine):
         return possible_drop_movements_sequence
 
     def start_new_game(self) -> None:
-        self.new_game()
-        self.save_state() # TODO save state when we get a new piece as well       
         
-        print(self.falling_piece)
-        
-        ga = self.GameAction
-        possible_sequences = self.get_possible_drop_movements_sequence()
-        for sequence in possible_sequences:
-            self.restore_state() # Always start from the beginning
+        self.new_game()        
 
-            self.is_game_over = False
+        possible_sequences = self.get_possible_drop_movements_sequence()
+
+        while not self.is_game_over:
+            self.save_state()
+            best_sequence = self.get_best_sequence(possible_sequences)
+            
+            self.restore_state() # So we can really play the sequence, not only try-outs
+            self.play_sequence(best_sequence) # TODO play but showing in the UI
+            print(self.playfield)
+            input("Press enter")
+
+    def get_best_sequence(self, possible_sequences :list[list[GameAction]]) -> list[GameAction]:
+        
+        results = []
+        
+        for sequence in possible_sequences:
+            self.restore_state() # All the sequences start from the same beginning
+
+            self.does_sequence_result_in_game_over = False
             self.lines_cleared = 0
             
-            can_play_sequence = self.play_sequence(sequence)
-            sequence_string = ' '.join([str(x) for x in sequence])
-            print(f'Sequence:  {sequence_string}  can be played: {can_play_sequence}')
+            can_play_sequence = self.play_sequence(sequence)            
+            
             if can_play_sequence:
                 statistics = self.get_playfield_statistics(self.playfield)
                 fitting_algorithm = self.calculate_heuristics(statistics, self.lines_cleared)
-                print(self.playfield)
+                results.append((sequence, fitting_algorithm))
+                # print(self.playfield)
+                sequence_string = ' '.join([str(x) for x in sequence])
+                print(f'Sequence:  {sequence_string}')
                 print(statistics)
                 print(fitting_algorithm)
                 print("")
+        
+        best_result = min(results, key=lambda item: item[1])
+        best_sequence_string = ' '.join([str(x) for x in best_result[0]])
+        print(f"{self.falling_piece} Best sequence: {best_sequence_string}  value: {best_result[1]}")
+        return best_result[0] # the sequence
 
     def play_sequence(self, sequence :list) -> bool:
         """
@@ -103,7 +122,6 @@ class TetrisAgent(TetrisEngine):
 
         If we can't reach the end of the sequence it means that the sequence is not valid and it will return false
         """
-        
         ga = self.GameAction
         sequence_length = len(sequence)
         can_move = True
@@ -112,9 +130,8 @@ class TetrisAgent(TetrisEngine):
 
             if sequence[i] == ga.DROP:
                 self.drop()
-                if self.is_game_over:
-                    print("GAME OVER, get out of here") # TODO in different method
-        
+                can_move = True
+
             elif sequence[i] == ga.MOVE_LEFT:                
                 can_move = self.move_left()
                 
@@ -156,7 +173,6 @@ class TetrisAgent(TetrisEngine):
         return statistics
 
     def calculate_heuristics(self, playfield_statistics :dict, lines_cleared :int) -> int:
-        # how many lines I do -> maximize
         # better to put pieces on the sides instead of the middle?
         # hidden empty block that we can lock if we move to the bottom and move left/right, instead of just dropping it?
         # we don't want wells (empty one single line waiting for an I piece)
@@ -166,7 +182,7 @@ class TetrisAgent(TetrisEngine):
         top_blocks = playfield_statistics["occupied_blocks_in_highest_non_empty_row"] # minimize
 
         # our fitting algorithm
-        fitting_algorithm = 2 * top + top_blocks # top is twice as important
+        fitting_algorithm = 4 * top + top_blocks - 40 * lines_cleared # maximize lines cleared
 
         return fitting_algorithm
 
@@ -179,6 +195,7 @@ class TetrisAgent(TetrisEngine):
         print("I have lines cleared")
 
     def game_over(self):
+        self.does_sequence_result_in_game_over = True # Only used for the try-out, not the real game
         self.is_game_over = True
         print("I reached game over") # TODO remove
 
