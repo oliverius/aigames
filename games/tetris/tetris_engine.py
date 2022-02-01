@@ -155,9 +155,14 @@ class Playfield:
 
         return lines_cleared
 
-    def get_block(self, x: int, y: int) -> str:
+    def get_block(self, x :int, y :int) -> str:
         [grid_x, grid_y] = self.get_grid_coordinates(x, y)
         return self.grid[grid_y][grid_x]
+
+    def get_row(self, y :int) -> list:
+        """ Bottom row is row y=1 """
+        [_, grid_y] = self.get_grid_coordinates(1, y)
+        return self.grid[grid_y]
 
     def is_block_available(self, x: int, y: int) -> bool:
         """
@@ -190,6 +195,9 @@ class FallingPiece:
     def __init__(self, shape :TetrominoShape) -> None:
         self.tetrominoes = config["tetrominoes"]
         self.set_new_falling_piece(shape)
+
+    def __str__(self) -> str:
+        return f'{self.shape} - {self.angle}°'
 
     def get_absolute_coordinates(self, center_x :int, center_y :int):
         return [ [center_x + relative_x, center_y + relative_y] for relative_x, relative_y in self.relative_coordinates]

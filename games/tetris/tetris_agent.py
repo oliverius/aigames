@@ -1,6 +1,6 @@
 from enum import Enum, unique
 import random
-from tetris_engine import TetrisEngine
+from tetris_engine import TetrisEngine, Playfield, TetrominoShape
 
 """
 TODO if we record how the agent performs we can use emojis
@@ -41,7 +41,6 @@ class TetrisAgent(TetrisEngine):
         self.bind_event(TetrisEngine.Events.ON_GAME_OVER, self.game_over)
 
         self.state = {}
-        self.possible_movements = [] # TODO
         # TODO enable/disable events while calculating posibilities
 
     def get_possible_drop_movements_sequence(self) -> None:
@@ -73,42 +72,38 @@ class TetrisAgent(TetrisEngine):
 
         return possible_drop_movements_sequence
 
-    def print_sequence(self, sequence :list): # TODO remove this function
-        for value in sequence:
-            print(str(value),end=" ")
-        print("")
-
     def start_new_game(self) -> None:
         self.new_game()
         self.save_state() # TODO save state when we get a new piece as well       
         
         print(self.falling_piece)
         
-        possible_sequences = self.get_possible_drop_movements_sequence()
         ga = self.GameAction
-        for sequence in possible_sequences: #TODO do it for all sequences
+        possible_sequences = self.get_possible_drop_movements_sequence()
+        for sequence in possible_sequences:
             self.restore_state() # Always start from the beginning
 
             self.is_game_over = False
             self.lines_cleared = 0
             
-            result = self.can_play_sequence(sequence)
+            can_play_sequence = self.play_sequence(sequence)
             sequence_string = ' '.join([str(x) for x in sequence])
-            print(f'Sequence:  {sequence_string}  can be played: {result}')
-            print(self.playfield)
-                
-            #self.set_falling_piece()
-            #lines_cleared = self.playfield.clear_full_lines()
+            print(f'Sequence:  {sequence_string}  can be played: {can_play_sequence}')
+            if can_play_sequence:
+                statistics = self.get_playfield_statistics(self.playfield)
+                fitting_algorithm = self.calculate_heuristics(statistics, self.lines_cleared)
+                print(self.playfield)
+                print(statistics)
+                print(fitting_algorithm)
+                print("")
 
-    def can_play_sequence(self, sequence :list) -> bool:
+    def play_sequence(self, sequence :list) -> bool:
         """
-        Try all the movements in a sequence of movements.
+        Try all the movements in a sequence of movements. If we run all it will return true.
 
         If we can't reach the end of the sequence it means that the sequence is not valid and it will return false
         """
         
-        #self.print_sequence(sequence)
-
         ga = self.GameAction
         sequence_length = len(sequence)
         can_move = True
@@ -116,44 +111,64 @@ class TetrisAgent(TetrisEngine):
         while i<sequence_length and can_move:
 
             if sequence[i] == ga.DROP:
-                print("drop") # check if can drop. if not, it is game over
                 self.drop()
                 if self.is_game_over:
                     print("GAME OVER, get out of here") # TODO in different method
         
             elif sequence[i] == ga.MOVE_LEFT:                
                 can_move = self.move_left()
-                print("move left")
                 
             elif sequence[i] == ga.MOVE_RIGHT:
                 can_move = self.move_right()
-                print("move right")
 
             elif sequence[i] == ga.ROTATE_LEFT:
                 can_move = self.rotate_left()
-                print("rotate left")
 
             elif sequence[i] == ga.ROTATE_RIGHT:
                 can_move = self.rotate_right()
-                print("rotate right") 
 
             i += 1
 
         return can_move
         
+    def get_playfield_statistics(self, playfield :Playfield) -> dict:
+        """
+        Analyses a playfield after a piece has fallen and the lines are cleared
+        and returns a list of useful information about the playfield
+        """
+        statistics = {}
+        
+        # We start from the top because there could be an empty row in the middle but still pieces "frozen" above
+        row_number = playfield.height
+        empty_row = [str(TetrominoShape.NONE)] * playfield.width
+        while self.playfield.get_row(row_number) == empty_row: # Watch out! This comparison works because we are comparing lists of strings
+            row_number -= 1
+        statistics["highest_non_empty_row"] = row_number
 
-    def get_playfield_statistics(self):
-        # TODO how tall the blocks reach in a current playfield -> minimize
+        # how many occupied spaces in the tallest row
+        row = self.playfield.get_row(statistics["highest_non_empty_row"])
+        occupied_blocks = 0
+        for block in row:
+            if block != str(TetrominoShape.NONE):
+                occupied_blocks += 1
+        statistics["occupied_blocks_in_highest_non_empty_row"] = occupied_blocks
+
+        return statistics
+
+    def calculate_heuristics(self, playfield_statistics :dict, lines_cleared :int) -> int:
         # how many lines I do -> maximize
         # better to put pieces on the sides instead of the middle?
         # hidden empty block that we can lock if we move to the bottom and move left/right, instead of just dropping it?
         # we don't want wells (empty one single line waiting for an I piece)
         # and more (research about it)
-        pass
+        
+        top = playfield_statistics["highest_non_empty_row"] # minimize
+        top_blocks = playfield_statistics["occupied_blocks_in_highest_non_empty_row"] # minimize
 
-    def calculate_heuristics(self, lines_cleared :int, grid :list):
         # our fitting algorithm
-        pass
+        fitting_algorithm = 2 * top + top_blocks # top is twice as important
+
+        return fitting_algorithm
 
     def update_playfield(self):
         # We only care about this to see what's going on but it won't affect our calculations
