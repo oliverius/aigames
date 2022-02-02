@@ -1,4 +1,5 @@
 from enum import Enum, unique
+from math import fabs
 import random
 from tetris_engine import TetrisEngine, Playfield, TetrominoShape
 
@@ -42,7 +43,9 @@ class TetrisAgent(TetrisEngine):
 
         self.state = {}
         self.is_game_over = False
+        self.lines_cleared = 0
         # TODO enable/disable events while calculating posibilities
+        # TODO try-out state to avoid some issues
 
     def get_possible_drop_movements_sequence(self) -> list[list[GameAction]]:
         """
@@ -78,15 +81,22 @@ class TetrisAgent(TetrisEngine):
         self.new_game()        
 
         possible_sequences = self.get_possible_drop_movements_sequence()
+        total_lines_cleared = 0
 
         while not self.is_game_over:
             self.save_state()
             best_sequence = self.get_best_sequence(possible_sequences)
-            
             self.restore_state() # So we can really play the sequence, not only try-outs
+            
+            self.is_game_over = False # Important or trying a sequence can cause game over by mistake
+            self.lines_cleared = 0
             self.play_sequence(best_sequence) # TODO play but showing in the UI
+            total_lines_cleared += self.lines_cleared
+
             print(self.playfield)
+            print(f'{total_lines_cleared} {self.lines_cleared}')
             input("Press enter")
+        print(self.is_game_over)
 
     def get_best_sequence(self, possible_sequences :list[list[GameAction]]) -> list[GameAction]:
         
@@ -95,16 +105,16 @@ class TetrisAgent(TetrisEngine):
         for sequence in possible_sequences:
             self.restore_state() # All the sequences start from the same beginning
 
-            self.does_sequence_result_in_game_over = False
-            self.lines_cleared = 0
+            self.try_out_sequence_is_game_over = False
+            self.try_out_sequence_lines_cleared = 0
             
             can_play_sequence = self.play_sequence(sequence)            
             
             if can_play_sequence:
                 statistics = self.get_playfield_statistics(self.playfield)
-                fitting_algorithm = self.calculate_heuristics(statistics, self.lines_cleared)
+                fitting_algorithm = self.calculate_heuristics(statistics, self.try_out_sequence_lines_cleared)
                 results.append((sequence, fitting_algorithm))
-                # print(self.playfield)
+
                 sequence_string = ' '.join([str(x) for x in sequence])
                 print(f'Sequence:  {sequence_string}')
                 print(statistics)
@@ -170,6 +180,20 @@ class TetrisAgent(TetrisEngine):
                 occupied_blocks += 1
         statistics["occupied_blocks_in_highest_non_empty_row"] = occupied_blocks
 
+        # how many horizontal "pockets" in populated rows i.e. stretches of empty spaces in a row
+        horizontal_pockets = 0
+        previous_is_empty_block = False
+        for row_number in range(1, statistics["highest_non_empty_row"] + 1):
+            row = self.playfield.get_row(row_number)
+            for block in row:
+                if block == str(TetrominoShape.NONE):
+                    if not previous_is_empty_block:
+                        horizontal_pockets += 1
+                    previous_is_empty_block = True
+                else:
+                    previous_is_empty_block = False
+        statistics["horizontal_pockets"] = horizontal_pockets
+
         return statistics
 
     def calculate_heuristics(self, playfield_statistics :dict, lines_cleared :int) -> int:
@@ -180,34 +204,36 @@ class TetrisAgent(TetrisEngine):
         
         top = playfield_statistics["highest_non_empty_row"] # minimize
         top_blocks = playfield_statistics["occupied_blocks_in_highest_non_empty_row"] # minimize
+        horizontal_pockets = playfield_statistics["horizontal_pockets"] # minimize
 
         # our fitting algorithm
-        fitting_algorithm = 4 * top + top_blocks - 40 * lines_cleared # maximize lines cleared
+        fitting_algorithm = 10 * top + top_blocks + horizontal_pockets - 40 * lines_cleared # maximize lines cleared
 
         return fitting_algorithm
 
-    def update_playfield(self):
+    def update_playfield(self, data :dict):
         # We only care about this to see what's going on but it won't affect our calculations
         pass
 
     def update_lines_cleared_counter(self, lines_cleared :int):
+        self.try_out_sequence_lines_cleared = lines_cleared
         self.lines_cleared = lines_cleared
         print("I have lines cleared")
 
     def game_over(self):
-        self.does_sequence_result_in_game_over = True # Only used for the try-out, not the real game
+        self.try_out_sequence_is_game_over = True # Only used for the try-out, not the real game
         self.is_game_over = True
         print("I reached game over") # TODO remove
 
     def restore_state(self):
-        self.playfield._grid = [ row[:] for row in self.state["grid"] ] # TODO something else
+        self.playfield._grid = [ row[:] for row in self.state["grid"] ] # TODO something else, shouldn't access internal grid
         self.falling_piece.center_x = self.state["center_x"]
         self.falling_piece.center_y = self.state["center_y"]
         self.falling_piece.set_shape(self.state["shape"])
         self.falling_piece.set_angle(self.state["angle"])
 
     def save_state(self):
-        self.state["grid"] = [ row[:] for row in self.playfield._grid ] # TODO something else
+        self.state["grid"] = [ row[:] for row in self.playfield._grid ] # TODO something else, shouldn't access internal grid
         self.state["center_x"] = self.falling_piece.center_x
         self.state["center_y"] = self.falling_piece.center_y
         self.state["shape"] = self.falling_piece.shape

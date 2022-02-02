@@ -166,7 +166,7 @@ class Playfield:
         [grid_x, grid_y] = self._get_grid_coordinates(x, y)
         return self._grid[grid_y][grid_x]
 
-    def get_row(self, y :int) -> list:
+    def get_row(self, y :int) -> list[str]:
         """ Bottom row is row y=1 """
         [_, grid_y] = self._get_grid_coordinates(1, y)
         return self._grid[grid_y]
