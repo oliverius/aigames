@@ -128,14 +128,15 @@ class Playfield:
 
     and the coordinates start on the left bottom corner (1,1)
     """
-    def __init__(self, width: int, height: int) -> None:
+    def __init__(self, width: int, height: int, hidden_top_rows :int) -> None:
         self.min_x = 1
         self.min_y = 1
         self.width = width
         self.height = height
+        self.visible_rows = height - hidden_top_rows # E.g. internally 22 rows but visible in the screen only the 20 bottom ones
         self.clear()
 
-    def get_grid_coordinates(self, x :int, y :int) -> list:
+    def _get_grid_coordinates(self, x :int, y :int) -> list:
         """
         Playfield coordinates to internal grid coordinates
         Playfield (x,y) = (1,1) is the left bottom corner
@@ -143,7 +144,7 @@ class Playfield:
         return [x - 1, self.height - y]
 
     def clear(self) -> None:
-        self.grid = [[str(TetrominoShape.NONE)] * self.width for y in range(self.height)]
+        self._grid = [[str(TetrominoShape.NONE)] * self.width for y in range(self.height)]
 
     def clear_full_lines(self) -> int:
         """
@@ -151,24 +152,24 @@ class Playfield:
         It is safer to create a new grid without those full lines
         and later add empty lines at the top to replace the full lines removed
         """
-        new_grid = [ self.grid[y].copy() for y in range(self.height) if str(TetrominoShape.NONE) in self.grid[y] ]
+        new_grid = [ self._grid[y].copy() for y in range(self.height) if str(TetrominoShape.NONE) in self._grid[y] ]
         
         lines_cleared = self.height - len(new_grid)
         for _ in range(lines_cleared):
             new_grid.insert(0, [str(TetrominoShape.NONE)] * self.width)
 
-        self.grid = new_grid
+        self._grid = new_grid
 
         return lines_cleared
 
     def get_block(self, x :int, y :int) -> str:
-        [grid_x, grid_y] = self.get_grid_coordinates(x, y)
-        return self.grid[grid_y][grid_x]
+        [grid_x, grid_y] = self._get_grid_coordinates(x, y)
+        return self._grid[grid_y][grid_x]
 
     def get_row(self, y :int) -> list:
         """ Bottom row is row y=1 """
-        [_, grid_y] = self.get_grid_coordinates(1, y)
-        return self.grid[grid_y]
+        [_, grid_y] = self._get_grid_coordinates(1, y)
+        return self._grid[grid_y]
 
     def is_block_available(self, x: int, y: int) -> bool:
         """
@@ -184,18 +185,19 @@ class Playfield:
         return self.min_x <= x <= self.width and self.min_y <= y <= self.height
 
     def set_block(self, x: int, y: int, shape: TetrominoShape) -> None:
-        [grid_x, grid_y] = self.get_grid_coordinates(x, y)
-        self.grid[grid_y][grid_x] = str(shape)
+        [grid_x, grid_y] = self._get_grid_coordinates(x, y)
+        self._grid[grid_y][grid_x] = str(shape)
 
     def __str__(self) -> str:
         """ Useful for debugging to dump to the command line the grid values """
         grid = ""
-        for row in self.grid:
+        for row in self._grid:
             line = ""
             for block in row:
                 line = line + " " + (block if block != str(TetrominoShape.NONE) else "•")
             grid = grid + line + '\n'
         return grid
+
 class FallingPiece:
 
     def __init__(self, shape :TetrominoShape) -> None:
@@ -253,10 +255,8 @@ class TetrisEngine:
         ON_GAME_OVER         = 3
 
     def __init__(self) -> None:
-        self.playfield = Playfield(config["playfield"]["width"], config["playfield"]["height"])
-        self.playfield_with_falling_piece = Playfield(config["playfield"]["width"], config["playfield"]["height"])
-        self.ghost_dropped_piece_coordinates = []
-
+        self.playfield = Playfield(config["playfield"]["width"], config["playfield"]["height"], config["playfield"]["hidden_top_rows"])
+        
         next_shape = self.get_next_shape()
         self.falling_piece = FallingPiece(next_shape)
 
@@ -267,8 +267,6 @@ class TetrisEngine:
 
     def bind_event(self, event_name :Events, func:object) -> None:
         self.event_bindings[event_name] = func
-
-    # todo can_have_new_piece(self)
 
     def can_move_falling_piece(self, new_center_x :int, new_center_y :int) -> bool:
         return all([
@@ -306,7 +304,7 @@ class TetrisEngine:
         ])
 
     def lock_falling_piece(self) -> None:
-        self.set_falling_piece(self.playfield)
+        self.set_falling_piece()
 
         lines_cleared = self.playfield.clear_full_lines()
         if lines_cleared > 0:
@@ -375,15 +373,14 @@ class TetrisEngine:
     def raise_on_playfield_updated_event(self) -> None:
         if not self.enable_on_playfield_updated_event:
             return
-            
-        # print(str(self.playfield)) # for debugging
-        # merge together the playfield with the falling piece into a playfield we can send to the UI
-        self.playfield_with_falling_piece.grid = [row[:] for row in self.playfield.grid]
-        self.set_falling_piece(self.playfield_with_falling_piece)
-        self.ghost_dropped_piece_coordinates = [
-            self.playfield.get_grid_coordinates(x,y) for x, y in self.get_ghost_dropped_piece_coordinates()]
 
-        self.event_bindings[TetrisEngine.Events.ON_PLAYFIELD_UPDATED]()
+        data = {}
+        data["falling_piece_coordinates"]       = self.falling_piece.get_current_absolute_coordinates()
+        data["ghost_dropped_piece_coordinates"] = self.get_ghost_dropped_piece_coordinates()
+        data["rows_from_the_bottom_up"]         = [self.playfield.get_row(y)
+                                                    for y in range(self.playfield.min_y, self.playfield.visible_rows + 1)]
+
+        self.event_bindings[TetrisEngine.Events.ON_PLAYFIELD_UPDATED](data)
 
     def get_ghost_dropped_piece_coordinates(self) -> list:
         center_x = self.falling_piece.center_x
@@ -397,6 +394,6 @@ class TetrisEngine:
         self.falling_piece.set_starting_position()
         self.raise_on_playfield_updated_event()
 
-    def set_falling_piece(self, playfield :Playfield) -> None:
+    def set_falling_piece(self) -> None:
         for x, y in self.falling_piece.get_current_absolute_coordinates():
-            playfield.set_block(x, y, self.falling_piece.shape)
+            self.playfield.set_block(x, y, self.falling_piece.shape)
