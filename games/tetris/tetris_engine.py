@@ -375,6 +375,7 @@ class TetrisEngine:
             return
 
         data = {}
+        data["falling_piece_shape"]             = str(self.falling_piece.shape)
         data["falling_piece_coordinates"]       = self.falling_piece.get_current_absolute_coordinates()
         data["ghost_dropped_piece_coordinates"] = self.get_ghost_dropped_piece_coordinates()
         data["rows_from_the_bottom_up"]         = [self.playfield.get_row(y)

@@ -101,10 +101,10 @@ class Window(tk.Tk):
 
     def show_ghost(self) -> None:
         self.focus_set()
-        if self.show_ghost_dropped_piece_checkbutton_value.get() == 0:
-            self.update_playfield()
-            # It doesn't wait for next update to the playfield (after the timer)
-            # to show the ghost piece or not, this feels more responsive
+        # To be more responsive we show/hide the ghost piece immediately
+        # without waiting for the next movement in the screen (either keyboard
+        # or piece falling)
+        self.tetris_engine.raise_on_playfield_updated_event()        
 
     def stop_timer(self) -> None:
         if self.gravity_timer:
@@ -118,31 +118,33 @@ class Window(tk.Tk):
         if self.show_ghost_dropped_piece_checkbutton_value.get() == 1:
             self.playfield_screen.draw(
                 data["rows_from_the_bottom_up"],
+                data["falling_piece_shape"],
                 data["falling_piece_coordinates"],
                 data["ghost_dropped_piece_coordinates"])
         else:
             self.playfield_screen.draw(
                 data["rows_from_the_bottom_up"],
+                data["falling_piece_shape"],
                 data["falling_piece_coordinates"],
                 [])
 
 class PlayfieldScreen(tk.Canvas):
     def __init__(self, master, columns: int, rows: int, background_color :str, tetrominoes: any, **kwargs):
-        self.width = 224
-        self.height = 444
+        self.width = 222  # 2 x border(2px) + 10 x blocks (20px) +  9 x gaps (2px)
+        self.height = 440 # well bottom 2px + 20 x blocks (20px) + 19 x gaps (2px)
         self.background = background_color
         super().__init__(master, width=self.width, height=self.height, bg=self.background, **kwargs)
 
         self.columns = columns
         self.rows = rows
 
-        # coordinates in pixels of (1,1)
-        self.x1 = 4
-        self.y1 = 400
-
         self.well_border_width = 2
         self.block_length = 20
         self.block_length_gap = 2
+
+        # coordinates in pixels of (1,1)
+        self.x1 = self.well_border_width + 1 # 3px
+        self.y1 = 420  # self.height - self.well_border_width - self.block_length # 418px TODO sort out last gap
         
         self.build_color_dictionary(tetrominoes)
         self.clear()
@@ -155,6 +157,7 @@ class PlayfieldScreen(tk.Canvas):
 
     def draw(self,
         rows_from_the_bottom_up :list[list[str]],
+        falling_piece_shape: str = "",
         falling_piece_coordinates :list[list] = [],
         ghost_dropped_piece_coordinates :list[list] = []) -> None:
         # The right thing to do is to tag each block and redraw only the ones that are different
@@ -164,17 +167,11 @@ class PlayfieldScreen(tk.Canvas):
         self.delete("all")
         self.draw_well()
         self.draw_rows(rows_from_the_bottom_up)
-        self.draw_falling_piece(falling_piece_coordinates)
+        self.draw_falling_piece(falling_piece_shape, falling_piece_coordinates)
         self.draw_ghost_dropped_piece(ghost_dropped_piece_coordinates)
 
     def clear(self) -> None:
         self.draw([[str(TetrominoShape.NONE)] * self.columns for y in range(self.rows)])
-
-    def draw_block2(self, grid_x :int, grid_y :int, shape :TetrominoShape) -> None:
-        x = self.x1 + grid_x * (self.block_length + self.block_length_gap)
-        y = self.x1 + grid_y * (self.block_length + self.block_length_gap)
-        color = self.colors_by_shape[shape]
-        self.create_rectangle( (x, y, x + self.block_length, y + self.block_length), outline="black", fill=color)
 
     def draw_block(self, playfield_x :int, playfield_y :int, shape :str) -> None:
         x = self.x1 + (playfield_x - 1) * (self.block_length + self.block_length_gap)
@@ -182,24 +179,26 @@ class PlayfieldScreen(tk.Canvas):
         color = self.colors_by_shape[shape]
         self.create_rectangle( (x, y, x + self.block_length, y + self.block_length), outline="black", fill=color)
 
-    def draw_falling_piece(self, coordinates: list[list]) -> None:
+    def draw_falling_piece(self, shape :str, coordinates: list[list]) -> None:
         if not coordinates:
             return
         for x, y in coordinates:
-            self.draw_block(x, y, str(TetrominoShape.I_SHAPE)) # TODO pass the shape in the dictionary
+            self.draw_block(x, y, shape)
+
+    def draw_ghost_block(self, playfield_x :int, playfield_y :int) -> None:
+        x = self.x1 + (playfield_x - 1) * (self.block_length + self.block_length_gap)
+        y = self.y1 - (playfield_y - 1) * (self.block_length + self.block_length_gap)
+        color = "black"
+        inset_px = 2
+        self.create_rectangle(
+                (x + inset_px, y + inset_px, x + self.block_length - inset_px, y + self.block_length - inset_px),
+                outline=color, fill="#D0D0D0")
 
     def draw_ghost_dropped_piece(self, coordinates :list) -> None:
         if not coordinates:
             return
-        # inset_px = 2
-        # for grid_x, grid_y in ghost_dropped_piece_coordinates:
-        #     visible_grid_y = grid_y - self.hidden_top_rows
-        #     x = self.grid_x0 + grid_x * (self.block_length + self.block_length_gap)
-        #     y = self.grid_x0 + visible_grid_y * (self.block_length + self.block_length_gap)
-        #     color = "black"
-        #     self.create_rectangle(
-        #         (x + inset_px, y + inset_px, x + self.block_length - inset_px, y + self.block_length - inset_px),
-        #         outline=color, fill="#D0D0D0")
+        for x, y in coordinates:
+            self.draw_ghost_block(x, y)
 
     def draw_rows(self, rows: list[list[str]]) -> None:
         for y, row in enumerate(rows, start=1):
