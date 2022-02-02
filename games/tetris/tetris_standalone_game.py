@@ -130,21 +130,22 @@ class Window(tk.Tk):
 
 class PlayfieldScreen(tk.Canvas):
     def __init__(self, master, columns: int, rows: int, background_color :str, tetrominoes: any, **kwargs):
-        self.width = 222  # 2 x border(2px) + 10 x blocks (20px) +  9 x gaps (2px)
-        self.height = 440 # well bottom 2px + 20 x blocks (20px) + 19 x gaps (2px)
+        self.width = 224  # 2 x border(2px) + 10 x blocks (20px) +  9 x gaps (2px) + extra two to fit all well
+        self.height = 442 # well bottom 2px + 20 x blocks (20px) + 19 x gaps (2px) + extra two to fit all well
         self.background = background_color
         super().__init__(master, width=self.width, height=self.height, bg=self.background, **kwargs)
 
         self.columns = columns
         self.rows = rows
 
+        self.well_border_color = "darkslategrey"
         self.well_border_width = 2
         self.block_length = 20
         self.block_length_gap = 2
 
-        # coordinates in pixels of (1,1)
-        self.x1 = self.well_border_width + 1 # 3px
-        self.y1 = 420  # self.height - self.well_border_width - self.block_length # 418px TODO sort out last gap
+        # coordinates of (1,1) in pixels
+        self.x1 = self.well_border_width + 2 # 4px
+        self.y1 = self.height - self.well_border_width - self.block_length
         
         self.build_color_dictionary(tetrominoes)
         self.clear()
@@ -157,7 +158,7 @@ class PlayfieldScreen(tk.Canvas):
 
     def draw(self,
         rows_from_the_bottom_up :list[list[str]],
-        falling_piece_shape: str = "",
+        falling_piece_shape: str = str(TetrominoShape.NONE),
         falling_piece_coordinates :list[list] = [],
         ghost_dropped_piece_coordinates :list[list] = []) -> None:
         # The right thing to do is to tag each block and redraw only the ones that are different
@@ -206,9 +207,10 @@ class PlayfieldScreen(tk.Canvas):
                 self.draw_block(x, y, value)
 
     def draw_well(self):
-        self.create_line(3, 0, 3, self.height, width=self.well_border_width, fill="black") # TODO why not 0 instead of 3 pixels to the right?
-        self.create_line(0, self.height, self.width, self.height, width=self.well_border_width, fill="black")
-        self.create_line(self.width, self.height, self.width, 0, width=self.well_border_width, fill="black")
+        # 3px seems to do the trick to see the left well wall because 0 wouldn't make it.
+        self.create_line(         3,           0,          3, self.height, width=self.well_border_width, fill=self.well_border_color)
+        self.create_line(         0, self.height, self.width, self.height, width=self.well_border_width, fill=self.well_border_color)
+        self.create_line(self.width, self.height, self.width,           0, width=self.well_border_width, fill=self.well_border_color)
 
 if __name__ == "__main__":
     window = Window()
