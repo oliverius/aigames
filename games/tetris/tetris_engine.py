@@ -110,8 +110,8 @@ config = {
         }
     ],
     "playfield": {
-        "width": 10,
-        "height": 22,
+        "columns": 10,
+        "rows": 22,
         "hidden_top_rows": 2,
         "background_color": "grey",
         "falling_piece": {
@@ -128,12 +128,12 @@ class Playfield:
 
     and the coordinates start on the left bottom corner (1,1)
     """
-    def __init__(self, width: int, height: int, hidden_top_rows :int) -> None:
+    def __init__(self, columns: int, rows: int, hidden_top_rows :int) -> None:
         self.min_x = 1
         self.min_y = 1
-        self.width = width
-        self.height = height
-        self.visible_rows = height - hidden_top_rows # E.g. internally 22 rows but visible in the screen only the 20 bottom ones
+        self.columns = columns
+        self.rows = rows
+        self.visible_rows = rows - hidden_top_rows # E.g. internally 22 rows but visible in the screen only the 20 bottom ones
         self.clear()
 
     def _get_grid_coordinates(self, x :int, y :int) -> list:
@@ -141,10 +141,10 @@ class Playfield:
         Playfield coordinates to internal grid coordinates
         Playfield (x,y) = (1,1) is the left bottom corner
         """
-        return [x - 1, self.height - y]
+        return [x - 1, self.rows - y]
 
     def clear(self) -> None:
-        self._grid = [[str(TetrominoShape.NONE)] * self.width for y in range(self.height)]
+        self._grid = [[str(TetrominoShape.NONE)] * self.columns for y in range(self.rows)]
 
     def clear_full_lines(self) -> int:
         """
@@ -152,11 +152,11 @@ class Playfield:
         It is safer to create a new grid without those full lines
         and later add empty lines at the top to replace the full lines removed
         """
-        new_grid = [ self._grid[y].copy() for y in range(self.height) if str(TetrominoShape.NONE) in self._grid[y] ]
+        new_grid = [ self._grid[y].copy() for y in range(self.rows) if str(TetrominoShape.NONE) in self._grid[y] ]
         
-        lines_cleared = self.height - len(new_grid)
+        lines_cleared = self.rows - len(new_grid)
         for _ in range(lines_cleared):
-            new_grid.insert(0, [str(TetrominoShape.NONE)] * self.width)
+            new_grid.insert(0, [str(TetrominoShape.NONE)] * self.columns)
 
         self._grid = new_grid
 
@@ -182,7 +182,7 @@ class Playfield:
         return self.get_block(x, y) == str(TetrominoShape.NONE)
 
     def is_block_within_boundaries(self, x :int, y: int) -> bool:
-        return self.min_x <= x <= self.width and self.min_y <= y <= self.height
+        return self.min_x <= x <= self.columns and self.min_y <= y <= self.rows
 
     def set_block(self, x: int, y: int, shape: TetrominoShape) -> None:
         [grid_x, grid_y] = self._get_grid_coordinates(x, y)
@@ -255,7 +255,7 @@ class TetrisEngine:
         ON_GAME_OVER         = 3
 
     def __init__(self) -> None:
-        self.playfield = Playfield(config["playfield"]["width"], config["playfield"]["height"], config["playfield"]["hidden_top_rows"])
+        self.playfield = Playfield(config["playfield"]["columns"], config["playfield"]["rows"], config["playfield"]["hidden_top_rows"])
         
         next_shape = self.get_next_shape()
         self.falling_piece = FallingPiece(next_shape)

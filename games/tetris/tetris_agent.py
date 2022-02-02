@@ -64,7 +64,7 @@ class TetrisAgent(TetrisEngine):
         
         moving_left_sequence = []
         moving_right_sequence = []
-        movements_each_side = self.playfield.width // 2
+        movements_each_side = self.playfield.columns // 2
         for _ in range(movements_each_side):
             moving_left_sequence += [ ga.MOVE_LEFT]
             possible_drop_movements_sequence += list(map(lambda seq: moving_left_sequence + seq, starting_position_sequence))
@@ -156,8 +156,8 @@ class TetrisAgent(TetrisEngine):
         statistics = {}
         
         # We start from the top because there could be an empty row in the middle but still pieces "frozen" above
-        row_number = playfield.height
-        empty_row = [str(TetrominoShape.NONE)] * playfield.width
+        row_number = playfield.rows
+        empty_row = [str(TetrominoShape.NONE)] * playfield.columns
         while self.playfield.get_row(row_number) == empty_row: # Watch out! This comparison works because we are comparing lists of strings
             row_number -= 1
         statistics["highest_non_empty_row"] = row_number
@@ -200,14 +200,14 @@ class TetrisAgent(TetrisEngine):
         print("I reached game over") # TODO remove
 
     def restore_state(self):
-        self.playfield.grid = [ row[:] for row in self.state["grid"] ]
+        self.playfield._grid = [ row[:] for row in self.state["grid"] ] # TODO something else
         self.falling_piece.center_x = self.state["center_x"]
         self.falling_piece.center_y = self.state["center_y"]
         self.falling_piece.set_shape(self.state["shape"])
         self.falling_piece.set_angle(self.state["angle"])
 
     def save_state(self):
-        self.state["grid"] = [ row[:] for row in self.playfield.grid ]
+        self.state["grid"] = [ row[:] for row in self.playfield._grid ] # TODO something else
         self.state["center_x"] = self.falling_piece.center_x
         self.state["center_y"] = self.falling_piece.center_y
         self.state["shape"] = self.falling_piece.shape

@@ -41,10 +41,9 @@ class Window(tk.Tk):
         self.tetris_engine.bind_event(TetrisEngine.Events.ON_GAME_OVER, self.game_over)
 
         self.playfield_screen = PlayfieldScreen(self,
-            config["playfield"]["width"],
-            config["playfield"]["height"],
+            config["playfield"]["columns"],
+            config["playfield"]["rows"],
             config["playfield"]["background_color"],
-            config["playfield"]["hidden_top_rows"],
             config["tetrominoes"])
         self.playfield_screen.place(x=20, y=20)
 
@@ -115,26 +114,32 @@ class Window(tk.Tk):
         self.total_lines_cleared += lines_cleared
         self.lines_cleared_text.set(f"Lines cleared: {self.total_lines_cleared}")
 
-    def update_playfield(self):
-        if self.show_ghost_dropped_piece_checkbutton_value.get() == 0:
-            ghost_dropped_piece_coordinates = []
+    def update_playfield(self, data :dict):        
+        if self.show_ghost_dropped_piece_checkbutton_value.get() == 1:
+            self.playfield_screen.draw(
+                data["rows_from_the_bottom_up"],
+                data["falling_piece_coordinates"],
+                data["ghost_dropped_piece_coordinates"])
         else:
-            ghost_dropped_piece_coordinates = self.tetris_engine.ghost_dropped_piece_coordinates
-        self.playfield_screen.draw(self.tetris_engine.playfield_with_falling_piece.grid, ghost_dropped_piece_coordinates)
+            self.playfield_screen.draw(
+                data["rows_from_the_bottom_up"],
+                data["falling_piece_coordinates"],
+                [])
 
 class PlayfieldScreen(tk.Canvas):
-    def __init__(self, master, grid_width: int, grid_height: int, background_color :str, hidden_top_rows :int, tetrominoes: any, **kwargs):
+    def __init__(self, master, columns: int, rows: int, background_color :str, tetrominoes: any, **kwargs):
         self.width = 224
         self.height = 444
         self.background = background_color
         super().__init__(master, width=self.width, height=self.height, bg=self.background, **kwargs)
 
-        self.grid_width = grid_width
-        self.grid_height = grid_height
-        self.hidden_top_rows = hidden_top_rows
+        self.columns = columns
+        self.rows = rows
 
-        self.grid_x0 = 4
-        self.grid_y0 = 4
+        # coordinates in pixels of (1,1)
+        self.x1 = 4
+        self.y1 = 400
+
         self.well_border_width = 2
         self.block_length = 20
         self.block_length_gap = 2
@@ -148,44 +153,58 @@ class PlayfieldScreen(tk.Canvas):
         for tetromino in tetrominoes:
             self.colors_by_shape[str(tetromino["shape"])] = str(tetromino["color"])
 
-    def draw(self, grid :list, ghost_dropped_piece_coordinates = []) -> None:
+    def draw(self,
+        rows_from_the_bottom_up :list[list[str]],
+        falling_piece_coordinates :list[list] = [],
+        ghost_dropped_piece_coordinates :list[list] = []) -> None:
         # The right thing to do is to tag each block and redraw only the ones that are different
         # i.e. different color. See this answer from comments: https://stackoverflow.com/a/15840231
         # But due to the simplicity of our grid and since I can't see any slowdown due to this,
         # we will delete all the graphics and redraw them in each frame
         self.delete("all")
         self.draw_well()
-        self.draw_grid(grid)
+        self.draw_rows(rows_from_the_bottom_up)
+        self.draw_falling_piece(falling_piece_coordinates)
         self.draw_ghost_dropped_piece(ghost_dropped_piece_coordinates)
 
     def clear(self) -> None:
-        self.draw([[str(TetrominoShape.NONE)] * self.grid_width for y in range(self.grid_height)])
+        self.draw([[str(TetrominoShape.NONE)] * self.columns for y in range(self.rows)])
 
-    def draw_block(self, grid_x :int, grid_y :int, shape :TetrominoShape) -> None:
-        x = self.grid_x0 + grid_x * (self.block_length + self.block_length_gap)
-        y = self.grid_x0 + grid_y * (self.block_length + self.block_length_gap)
+    def draw_block2(self, grid_x :int, grid_y :int, shape :TetrominoShape) -> None:
+        x = self.x1 + grid_x * (self.block_length + self.block_length_gap)
+        y = self.x1 + grid_y * (self.block_length + self.block_length_gap)
         color = self.colors_by_shape[shape]
         self.create_rectangle( (x, y, x + self.block_length, y + self.block_length), outline="black", fill=color)
 
-    def draw_ghost_dropped_piece(self, ghost_dropped_piece_coordinates :list) -> None:
-        if not ghost_dropped_piece_coordinates:
-            return
-        inset_px = 2
-        for grid_x, grid_y in ghost_dropped_piece_coordinates:
-            visible_grid_y = grid_y - self.hidden_top_rows
-            x = self.grid_x0 + grid_x * (self.block_length + self.block_length_gap)
-            y = self.grid_x0 + visible_grid_y * (self.block_length + self.block_length_gap)
-            color = "black"
-            self.create_rectangle(
-                (x + inset_px, y + inset_px, x + self.block_length - inset_px, y + self.block_length - inset_px),
-                outline=color, fill="#D0D0D0")
+    def draw_block(self, playfield_x :int, playfield_y :int, shape :str) -> None:
+        x = self.x1 + (playfield_x - 1) * (self.block_length + self.block_length_gap)
+        y = self.y1 - (playfield_y - 1) * (self.block_length + self.block_length_gap)
+        color = self.colors_by_shape[shape]
+        self.create_rectangle( (x, y, x + self.block_length, y + self.block_length), outline="black", fill=color)
 
-    def draw_grid(self, grid :list) -> None:
-        for y in range(self.hidden_top_rows, self.grid_height):
-            for x in range(self.grid_width):
-                shape = grid[y][x]
-                visible_y = y - self.hidden_top_rows
-                self.draw_block(x, visible_y, shape)
+    def draw_falling_piece(self, coordinates: list[list]) -> None:
+        if not coordinates:
+            return
+        for x, y in coordinates:
+            self.draw_block(x, y, str(TetrominoShape.I_SHAPE)) # TODO pass the shape in the dictionary
+
+    def draw_ghost_dropped_piece(self, coordinates :list) -> None:
+        if not coordinates:
+            return
+        # inset_px = 2
+        # for grid_x, grid_y in ghost_dropped_piece_coordinates:
+        #     visible_grid_y = grid_y - self.hidden_top_rows
+        #     x = self.grid_x0 + grid_x * (self.block_length + self.block_length_gap)
+        #     y = self.grid_x0 + visible_grid_y * (self.block_length + self.block_length_gap)
+        #     color = "black"
+        #     self.create_rectangle(
+        #         (x + inset_px, y + inset_px, x + self.block_length - inset_px, y + self.block_length - inset_px),
+        #         outline=color, fill="#D0D0D0")
+
+    def draw_rows(self, rows: list[list[str]]) -> None:
+        for y, row in enumerate(rows, start=1):
+            for x, value in enumerate(row, start=1):
+                self.draw_block(x, y, value)
 
     def draw_well(self):
         self.create_line(3, 0, 3, self.height, width=self.well_border_width, fill="black") # TODO why not 0 instead of 3 pixels to the right?
