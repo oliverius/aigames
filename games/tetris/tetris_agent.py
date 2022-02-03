@@ -103,10 +103,10 @@ class TetrisAgent(TetrisEngine):
             self.play_sequence(best_sequence) # TODO play but showing in the UI enable update_playfield event
             total_lines_cleared += self.lines_cleared
 
-            print(self.playfield)
-            print(f'{total_lines_cleared} {self.lines_cleared}')
-            input("Press enter")
-        print(self.is_game_over)
+            #print(self.playfield)
+            #print(f'{total_lines_cleared} {self.lines_cleared}')
+            #input("Press enter")
+        print(f'Game over with {total_lines_cleared}')
 
     def get_best_sequence(self, possible_sequences :list[list[GameAction]]) -> list[GameAction]:
         
@@ -126,14 +126,14 @@ class TetrisAgent(TetrisEngine):
                 results.append((sequence, fitting_algorithm))
 
                 sequence_string = ' '.join([str(x) for x in sequence])
-                print(f'Sequence:  {sequence_string}')
-                print(statistics)
-                print(fitting_algorithm)
-                print("")
+                # print(f'Sequence:  {sequence_string}')
+                # print(statistics)
+                # print(fitting_algorithm)
+                # print("")
         
         best_result = min(results, key=lambda item: item[1])
         best_sequence_string = ' '.join([str(x) for x in best_result[0]])
-        print(f"{self.falling_piece} Best sequence: {best_sequence_string}  value: {best_result[1]}")
+        #print(f"{self.falling_piece} Best sequence: {best_sequence_string}  value: {best_result[1]}")
         return best_result[0] # the sequence
 
     def play_sequence(self, sequence :list) -> bool:
@@ -223,6 +223,39 @@ class TetrisAgent(TetrisEngine):
             potential_energy += occupied_blocks * g * row_number
         statistics["potential_energy"] = potential_energy
 
+        # Blocks that are not supported below by another block get extra weights
+        # We work with the columns
+        # Example, imagine we have this two rows:
+        #
+        #  row 2    T T T •
+        #  row 1    • T • •
+        #
+        # rows = [ 
+        #   ['T', 'T', 'T', ' '],
+        #   [' ', 'T', ' ', ' '] ]
+        #
+        # reverse_rows = [
+        #   [' ', 'T', ' ', ' '],
+        #   ['T', 'T', 'T', ' '] ]
+        #
+        # top_to_bottom_columns = [
+        #   [' ', 'T'],
+        #   ['T', 'T'],
+        #   [' ', 'T'],
+        #   [' ', ' '],
+        # ] 
+        # So it is easy to check from the top which block has no "support" underneath
+
+        unsupported_blocks = 0
+        reverse_rows = [self.playfield.get_row(y) for y in range(statistics["highest_non_empty_row"], 0, -1)]
+        top_to_bottom_columns = [list(x) for x in zip(*reverse_rows)]
+        # We start from the top until row 2 (row 1 is always supported as it is the first one)
+        for column in top_to_bottom_columns:
+            for index in range(len(column)-1):            
+                if column[index] != str(TetrominoShape.NONE) and column[index+1] == str(TetrominoShape.NONE):
+                    unsupported_blocks += 1
+        statistics["unsuported_blocks"] = unsupported_blocks
+
         return statistics
 
     def calculate_heuristics(self, playfield_statistics :dict, lines_cleared :int) -> float:
@@ -231,18 +264,17 @@ class TetrisAgent(TetrisEngine):
         # we don't want wells (empty one single line waiting for an I piece)
         # and more (research about it)
         
-        top = playfield_statistics["highest_non_empty_row"] # minimize
-        horizontal_pockets = playfield_statistics["horizontal_pockets"] # minimize
-        potential_energy = playfield_statistics["potential_energy"] # minimize
+        #top = playfield_statistics["highest_non_empty_row"] # minimize
+        horizontal_pockets = playfield_statistics["horizontal_pockets"] # minimize. Important to move pieces to the sides and avoid wells
+        potential_energy = playfield_statistics["potential_energy"] # minimize. To keep things low not growing in rows
+        unsupported_blocks = playfield_statistics["unsuported_blocks"] # minimize to avoid empty spaces under blocks
 
         # our fitting algorithm
-        #fitting_algorithm = 10 * top + top_blocks + horizontal_pockets - 100 * lines_cleared # maximize lines cleared        
-        w = lambda x: x / (10**len(str(x)))
-        
-        #fitting_algorithm = w(top) + 1.5*w(horizontal_pockets) - 3*w(lines_cleared)
-        fitting_algorithm = potential_energy - 3*lines_cleared
-        #print(f'{w(top)} {w(horizontal_pockets)} {3*w(lines_cleared)}')
-        print(f'{potential_energy} {w(horizontal_pockets)} {3*lines_cleared}')
+        #fitting_algorithm = potential_energy + 2*unsupported_blocks + horizontal_pockets - 100*lines_cleared 165 lines
+        fitting_algorithm = potential_energy + 1.9*unsupported_blocks + horizontal_pockets - 100*lines_cleared # 248 lines
+        fitting_algorithm = potential_energy + 1.9*unsupported_blocks + 2*horizontal_pockets - 100*lines_cleared # 248 lines
+
+        #print(f'{potential_energy} {unsupported_blocks} {100*lines_cleared}')
         return fitting_algorithm
 
     def update_playfield(self, data :dict):
@@ -252,12 +284,12 @@ class TetrisAgent(TetrisEngine):
     def update_lines_cleared_counter(self, lines_cleared :int):
         self.try_out_sequence_lines_cleared = lines_cleared
         self.lines_cleared = lines_cleared
-        print("I have lines cleared")
+        #print("I have lines cleared")
 
     def game_over(self):
         self.try_out_sequence_is_game_over = True # Only used for the try-out, not the real game
         self.is_game_over = True
-        print("I reached game over") # TODO remove
+        #print("I reached game over") # TODO remove
 
     def restore_state(self):
         self.playfield._grid = [ row[:] for row in self.state["rows"] ] # TODO something else, shouldn't access internal grid
