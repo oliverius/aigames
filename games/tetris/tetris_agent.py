@@ -58,6 +58,7 @@ class TetrisAgent(TetrisEngine):
         ]
 
         rotation_sequence = [
+            [ ],
             [ ga.ROTATE_LEFT ],
             [ ga.ROTATE_LEFT, ga.ROTATE_LEFT ],
             [ ga.ROTATE_LEFT, ga.ROTATE_LEFT, ga.ROTATE_LEFT ]
@@ -181,18 +182,10 @@ class TetrisAgent(TetrisEngine):
             row_number -= 1
         statistics["highest_non_empty_row"] = row_number
 
-        # how many occupied spaces in the tallest row
-        row = self.playfield.get_row(statistics["highest_non_empty_row"])
-        occupied_blocks = 0
-        for block in row:
-            if block != str(TetrominoShape.NONE):
-                occupied_blocks += 1
-        statistics["occupied_blocks_in_highest_non_empty_row"] = occupied_blocks
-
         # how many horizontal "pockets" in populated rows i.e. stretches of empty spaces in a row
         horizontal_pockets = 0
-        previous_is_empty_block = False
         for row_number in range(1, statistics["highest_non_empty_row"] + 1):
+            previous_is_empty_block = False
             row = self.playfield.get_row(row_number)
             for block in row:
                 if block == str(TetrominoShape.NONE):
@@ -205,19 +198,22 @@ class TetrisAgent(TetrisEngine):
 
         return statistics
 
-    def calculate_heuristics(self, playfield_statistics :dict, lines_cleared :int) -> int:
+    def calculate_heuristics(self, playfield_statistics :dict, lines_cleared :int) -> float:
         # better to put pieces on the sides instead of the middle?
         # hidden empty block that we can lock if we move to the bottom and move left/right, instead of just dropping it?
         # we don't want wells (empty one single line waiting for an I piece)
         # and more (research about it)
         
         top = playfield_statistics["highest_non_empty_row"] # minimize
-        top_blocks = playfield_statistics["occupied_blocks_in_highest_non_empty_row"] # minimize
         horizontal_pockets = playfield_statistics["horizontal_pockets"] # minimize
 
         # our fitting algorithm
-        fitting_algorithm = 10 * top + top_blocks + horizontal_pockets - 100 * lines_cleared # maximize lines cleared
-
+        #fitting_algorithm = 10 * top + top_blocks + horizontal_pockets - 100 * lines_cleared # maximize lines cleared        
+        w = lambda x: x / (10**len(str(x)))
+        
+        fitting_algorithm = w(top) + 1.1*w(horizontal_pockets) - 3*w(lines_cleared)
+        print(f'{w(top)} {w(horizontal_pockets)} {3*w(lines_cleared)}')
+        
         return fitting_algorithm
 
     def update_playfield(self, data :dict):
