@@ -48,12 +48,6 @@ class TetrisAgent(TetrisEngine):
         # TODO try-out state to avoid some issues
 
     def get_possible_drop_movements_sequence(self) -> list[list[GameAction]]:
-        """
-        It is important that the first possible sequence is just "drop".
-
-        If we are not even able to even "drop" it means that we can't put any more pieces
-        and therefore it is game over.
-        """
         ga = self.GameAction
 
         starting_position_sequence = [
@@ -61,6 +55,12 @@ class TetrisAgent(TetrisEngine):
             [ ga.ROTATE_LEFT, ga.DROP ],
             [ ga.ROTATE_LEFT, ga.ROTATE_LEFT, ga.DROP ],
             [ ga.ROTATE_LEFT, ga.ROTATE_LEFT, ga.ROTATE_LEFT, ga.DROP ]
+        ]
+
+        rotation_sequence = [
+            [ ga.ROTATE_LEFT ],
+            [ ga.ROTATE_LEFT, ga.ROTATE_LEFT ],
+            [ ga.ROTATE_LEFT, ga.ROTATE_LEFT, ga.ROTATE_LEFT ]
         ]
         
         possible_drop_movements_sequence = starting_position_sequence.copy()
@@ -70,9 +70,18 @@ class TetrisAgent(TetrisEngine):
         movements_each_side = self.playfield.columns // 2
         for _ in range(movements_each_side):
             moving_left_sequence += [ ga.MOVE_LEFT]
-            possible_drop_movements_sequence += list(map(lambda seq: moving_left_sequence + seq, starting_position_sequence))
+            sequences = [ seq + moving_left_sequence + [ ga.DROP ] for seq in rotation_sequence]
+            possible_drop_movements_sequence += sequences
+
             moving_right_sequence += [ ga.MOVE_RIGHT]
-            possible_drop_movements_sequence += list(map(lambda seq: moving_right_sequence + seq, starting_position_sequence))
+            sequences = [ seq + moving_right_sequence + [ ga.DROP ] for seq in rotation_sequence]
+            possible_drop_movements_sequence += sequences
+
+        # for seq in possible_drop_movements_sequence:
+        #     for mov in seq:
+        #         print(str(mov), end=" ")
+        #     print("")
+        # input("x")
 
         return possible_drop_movements_sequence
 
@@ -90,7 +99,7 @@ class TetrisAgent(TetrisEngine):
             
             self.is_game_over = False # Important or trying a sequence can cause game over by mistake
             self.lines_cleared = 0
-            self.play_sequence(best_sequence) # TODO play but showing in the UI
+            self.play_sequence(best_sequence) # TODO play but showing in the UI enable update_playfield event
             total_lines_cleared += self.lines_cleared
 
             print(self.playfield)
@@ -207,7 +216,7 @@ class TetrisAgent(TetrisEngine):
         horizontal_pockets = playfield_statistics["horizontal_pockets"] # minimize
 
         # our fitting algorithm
-        fitting_algorithm = 10 * top + top_blocks + horizontal_pockets - 40 * lines_cleared # maximize lines cleared
+        fitting_algorithm = 10 * top + top_blocks + horizontal_pockets - 100 * lines_cleared # maximize lines cleared
 
         return fitting_algorithm
 
@@ -226,14 +235,15 @@ class TetrisAgent(TetrisEngine):
         print("I reached game over") # TODO remove
 
     def restore_state(self):
-        self.playfield._grid = [ row[:] for row in self.state["grid"] ] # TODO something else, shouldn't access internal grid
+        self.playfield._grid = [ row[:] for row in self.state["rows"] ] # TODO something else, shouldn't access internal grid
         self.falling_piece.center_x = self.state["center_x"]
         self.falling_piece.center_y = self.state["center_y"]
         self.falling_piece.set_shape(self.state["shape"])
         self.falling_piece.set_angle(self.state["angle"])
 
     def save_state(self):
-        self.state["grid"] = [ row[:] for row in self.playfield._grid ] # TODO something else, shouldn't access internal grid
+        self.state["rows"] = [ row[:] for row in self.playfield._grid ] # TODO something else, shouldn't access internal grid
+        #self.state["grid"] = [self.playfield.get_row(y) for y in range(self.playfield.min_y, self.playfield.rows + 1)]
         self.state["center_x"] = self.falling_piece.center_x
         self.state["center_y"] = self.falling_piece.center_y
         self.state["shape"] = self.falling_piece.shape
