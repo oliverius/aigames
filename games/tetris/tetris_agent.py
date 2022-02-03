@@ -196,6 +196,33 @@ class TetrisAgent(TetrisEngine):
                     previous_is_empty_block = False
         statistics["horizontal_pockets"] = horizontal_pockets
 
+        # weighted rows. The more blocks in a lower row the less energy
+        # Like potential energy in physics, more energy the higher it gets E = m*g*h
+        # In our case the mass is the number of blocks and height is the row number
+        # For example this:
+        #
+        # row 2    L L L • • • • • • •
+        # row 1    L • • • • • • • • •
+        #
+        # E = 1*1 + 3*2 = 1 + 6 = 7
+        #
+        # However if the base is bigger:
+        #
+        # row 2    L • • • • • • • • •
+        # row 1    L L L • • • • • • •
+        #
+        # E = 3*1 + 1*2 = 3 + 2 = 5 which is lower energy and therefore preferred
+        #
+        potential_energy = 0
+        g = 0.1 # The reason for this is to not exagerate the potential energy gain from row 1-20
+                # without this, the potential energy of a block in row 20 is 20 times that of a block
+                # in row 1 but with this it is 20*0.1 = 2 times more only
+        for row_number in range(1, statistics["highest_non_empty_row"] + 1):
+            row = self.playfield.get_row(row_number)
+            occupied_blocks = len(row) - row.count(str(TetrominoShape.NONE))
+            potential_energy += occupied_blocks * g * row_number
+        statistics["potential_energy"] = potential_energy
+
         return statistics
 
     def calculate_heuristics(self, playfield_statistics :dict, lines_cleared :int) -> float:
@@ -206,14 +233,16 @@ class TetrisAgent(TetrisEngine):
         
         top = playfield_statistics["highest_non_empty_row"] # minimize
         horizontal_pockets = playfield_statistics["horizontal_pockets"] # minimize
+        potential_energy = playfield_statistics["potential_energy"] # minimize
 
         # our fitting algorithm
         #fitting_algorithm = 10 * top + top_blocks + horizontal_pockets - 100 * lines_cleared # maximize lines cleared        
         w = lambda x: x / (10**len(str(x)))
         
-        fitting_algorithm = w(top) + 1.1*w(horizontal_pockets) - 3*w(lines_cleared)
-        print(f'{w(top)} {w(horizontal_pockets)} {3*w(lines_cleared)}')
-        
+        #fitting_algorithm = w(top) + 1.5*w(horizontal_pockets) - 3*w(lines_cleared)
+        fitting_algorithm = potential_energy - 3*lines_cleared
+        #print(f'{w(top)} {w(horizontal_pockets)} {3*w(lines_cleared)}')
+        print(f'{potential_energy} {w(horizontal_pockets)} {3*lines_cleared}')
         return fitting_algorithm
 
     def update_playfield(self, data :dict):
