@@ -20,6 +20,17 @@ It means that we had an L-shape tetromino, we moved it twice to the left, rotate
 drop it and we made 2 lines
 
 """
+from time import time
+from functools import wraps
+def timing(f):
+    @wraps(f)
+    def wrap(*args, **kwargs):
+        t_start = time()
+        result = f(*args, **kwargs)
+        t_end = time()
+        print(f'Function {f.__name__} took {t_end-t_start:2.4f} s')
+        return result
+    return wrap
 
 class TetrisAgent(TetrisEngine):
 
@@ -86,12 +97,15 @@ class TetrisAgent(TetrisEngine):
 
         return possible_drop_movements_sequence
 
+    @timing
     def start_new_game(self) -> None:
         
         self.new_game()        
 
         possible_sequences = self.get_possible_drop_movements_sequence()
         total_lines_cleared = 0
+
+        total_movements = 0
 
         while not self.is_game_over:
             self.save_state()
@@ -101,12 +115,13 @@ class TetrisAgent(TetrisEngine):
             self.is_game_over = False # Important or trying a sequence can cause game over by mistake
             self.lines_cleared = 0
             self.play_sequence(best_sequence) # TODO play but showing in the UI enable update_playfield event
+            total_movements += 1
             total_lines_cleared += self.lines_cleared
 
             #print(self.playfield)
             #print(f'{total_lines_cleared} {self.lines_cleared}')
             #input("Press enter")
-        print(f'Game over with {total_lines_cleared}')
+        print(f'Game over with {total_lines_cleared} lines cleared and {total_movements} total movements done')
 
     def get_best_sequence(self, possible_sequences :list[list[GameAction]]) -> list[GameAction]:
         
@@ -167,7 +182,7 @@ class TetrisAgent(TetrisEngine):
             i += 1
 
         return can_move
-        
+    
     def get_playfield_statistics(self, playfield :Playfield) -> dict:
         """
         Analyses a playfield after a piece has fallen and the lines are cleared
@@ -271,8 +286,7 @@ class TetrisAgent(TetrisEngine):
 
         # our fitting algorithm
         #fitting_algorithm = potential_energy + 2*unsupported_blocks + horizontal_pockets - 100*lines_cleared 165 lines
-        fitting_algorithm = potential_energy + 1.9*unsupported_blocks + horizontal_pockets - 100*lines_cleared # 248 lines
-        fitting_algorithm = potential_energy + 1.9*unsupported_blocks + 2*horizontal_pockets - 100*lines_cleared # 248 lines
+        fitting_algorithm = potential_energy + 1.9*unsupported_blocks + horizontal_pockets - 100*lines_cleared # 248 lines        
 
         #print(f'{potential_energy} {unsupported_blocks} {100*lines_cleared}')
         return fitting_algorithm
