@@ -162,14 +162,18 @@ class Playfield:
 
         return lines_cleared
 
+    def get_all_rows(self) -> list[list[str]]:
+        """ It gets a deep copy of all the rows from the first row (bottom) to the last row (top) """
+        return list( reversed([ list(row) for row in self._grid ]) )
+
     def get_block(self, x :int, y :int) -> str:
         [grid_x, grid_y] = self._get_grid_coordinates(x, y)
         return self._grid[grid_y][grid_x]
 
     def get_row(self, y :int) -> list[str]:
-        """ Bottom row is row y=1 """
+        """ Deep copy of a row. Bottom row is row y=1 """
         [_, grid_y] = self._get_grid_coordinates(1, y)
-        return self._grid[grid_y]
+        return [ value for value in self._grid[grid_y] ]
 
     def is_block_available(self, x: int, y: int) -> bool:
         """
@@ -183,6 +187,10 @@ class Playfield:
 
     def is_block_within_boundaries(self, x :int, y: int) -> bool:
         return self.min_x <= x <= self.columns and self.min_y <= y <= self.rows
+
+    def set_all_rows(self, rows :list[list[str]]) -> None:
+        """ It sets all rows (deep copy) from the first row (bottom) to the last row (top) """
+        self._grid = [ list(row) for row in reversed(rows) ]
 
     def set_block(self, x: int, y: int, shape: TetrominoShape) -> None:
         [grid_x, grid_y] = self._get_grid_coordinates(x, y)

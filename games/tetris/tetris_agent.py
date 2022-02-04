@@ -306,15 +306,14 @@ class TetrisAgent(TetrisEngine):
         #print("I reached game over") # TODO remove
 
     def restore_state(self):
-        self.playfield._grid = [ row[:] for row in self.state["rows"] ] # TODO something else, shouldn't access internal grid
+        self.playfield.set_all_rows(self.state["rows"])
         self.falling_piece.center_x = self.state["center_x"]
         self.falling_piece.center_y = self.state["center_y"]
         self.falling_piece.set_shape(self.state["shape"])
         self.falling_piece.set_angle(self.state["angle"])
 
-    def save_state(self):
-        self.state["rows"] = [ row[:] for row in self.playfield._grid ] # TODO something else, shouldn't access internal grid
-        #self.state["grid"] = [self.playfield.get_row(y) for y in range(self.playfield.min_y, self.playfield.rows + 1)]
+    def save_state(self):       
+        self.state["rows"] = self.playfield.get_all_rows()
         self.state["center_x"] = self.falling_piece.center_x
         self.state["center_y"] = self.falling_piece.center_y
         self.state["shape"] = self.falling_piece.shape
