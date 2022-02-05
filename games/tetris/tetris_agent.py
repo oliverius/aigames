@@ -58,6 +58,78 @@ class TetrisAgent(TetrisEngine):
         # TODO enable/disable events while calculating posibilities
         # TODO try-out state to avoid some issues
 
+    def calculate_heuristics(self, playfield_statistics :dict, lines_cleared :int, weights :dict) -> float:       
+        fitting_algorithm = (
+            weights["weight_aggregated_height"] * playfield_statistics["aggregated_height"] +
+            weights["weight_total_holes"]       * playfield_statistics["total_holes"]       +
+            weights["weight_bumpiness"]         * playfield_statistics["bumpiness"]         +
+            weights["weight_lines_cleared"]     * lines_cleared
+        )
+        return fitting_algorithm
+
+    def get_best_sequence(self, sequences :list[list[GameAction]], weights :dict) -> list[GameAction]:
+        
+        results = []
+        
+        for sequence in sequences:
+            self.restore_state() # All the sequences start from the same beginning
+
+            self.try_out_sequence_is_game_over = False
+            self.try_out_sequence_lines_cleared = 0
+            
+            can_play_sequence = self.play_sequence(sequence)            
+            
+            if can_play_sequence:
+                statistics = self.get_playfield_statistics(self.playfield)
+                fitting_algorithm = self.calculate_heuristics(statistics, self.try_out_sequence_lines_cleared, weights)
+                results.append((sequence, fitting_algorithm))
+
+                sequence_string = ' '.join([str(x) for x in sequence])
+                # print(f'Sequence:  {sequence_string}')
+                # print(statistics)
+                # print(fitting_algorithm)
+                # print("")
+        
+        best_result = min(results, key=lambda item: item[1])
+        best_sequence_string = ' '.join([str(x) for x in best_result[0]])
+        #print(f"{self.falling_piece} Best sequence: {best_sequence_string}  value: {best_result[1]}")
+        return best_result[0] # the sequence
+
+    def get_playfield_column_statistics(self, column :list[str], first_row :int) -> tuple[int,int]:
+        highest_non_empty_row_found = False
+        highest_non_empty_row = 0
+        holes_count = 0
+        for row, value in reversed(list(enumerate(column, start=first_row))):
+            if not highest_non_empty_row_found:
+                if value != str(TetrominoShape.NONE):
+                    highest_non_empty_row_found = True
+                    highest_non_empty_row = row
+            else:
+                if value == str(TetrominoShape.NONE):
+                    holes_count += 1
+        return (highest_non_empty_row, holes_count)
+
+    def get_playfield_statistics(self, playfield: Playfield) -> dict:
+        """
+        Analyses a playfield after a piece has fallen and the lines are cleared
+        and returns a list of useful information about the playfield
+        """
+        columns = [list(column) for column in zip(*playfield.get_all_rows())]
+        first_row = playfield.min_y
+        
+        column_statistics = [ self.get_playfield_column_statistics(column, first_row) for column in columns ]
+        
+        heights, holes = zip(*column_statistics)
+
+        # It is the sum of the absolute difference in height between adjacent columns
+        bumpiness = sum([abs(current-next) for current, next in zip(heights, heights[1:])])
+
+        return {
+            "aggregated_height": sum(heights),
+            "total_holes": sum(holes),
+            "bumpiness": bumpiness
+        }
+
     def get_possible_drop_movements_sequence(self) -> list[list[GameAction]]:
         ga = self.GameAction
 
@@ -97,60 +169,6 @@ class TetrisAgent(TetrisEngine):
 
         return possible_drop_movements_sequence
 
-    @timing
-    def start_new_game(self, weights :dict) -> None:
-        
-        self.new_game()        
-
-        possible_sequences = self.get_possible_drop_movements_sequence()
-        total_lines_cleared = 0
-
-        total_movements = 0
-
-        while not self.is_game_over:
-            self.save_state()
-            best_sequence = self.get_best_sequence(possible_sequences, weights)
-            self.restore_state() # So we can really play the sequence, not only try-outs
-            
-            self.is_game_over = False # Important or trying a sequence can cause game over by mistake
-            self.lines_cleared = 0
-            self.play_sequence(best_sequence) # TODO play but showing in the UI enable update_playfield event
-            total_movements += 1
-            total_lines_cleared += self.lines_cleared
-
-            #print(self.playfield)
-            #print(f'{total_lines_cleared} {self.lines_cleared}')
-            #input("Press enter")
-        print(f'Game over with {total_lines_cleared} lines cleared and {total_movements} total movements done')
-
-    def get_best_sequence(self, possible_sequences :list[list[GameAction]], weights :dict) -> list[GameAction]:
-        
-        results = []
-        
-        for sequence in possible_sequences:
-            self.restore_state() # All the sequences start from the same beginning
-
-            self.try_out_sequence_is_game_over = False
-            self.try_out_sequence_lines_cleared = 0
-            
-            can_play_sequence = self.play_sequence(sequence)            
-            
-            if can_play_sequence:
-                statistics = self.get_playfield_statistics(self.playfield)
-                fitting_algorithm = self.calculate_heuristics(statistics, self.try_out_sequence_lines_cleared, weights)
-                results.append((sequence, fitting_algorithm))
-
-                sequence_string = ' '.join([str(x) for x in sequence])
-                # print(f'Sequence:  {sequence_string}')
-                # print(statistics)
-                # print(fitting_algorithm)
-                # print("")
-        
-        best_result = min(results, key=lambda item: item[1])
-        best_sequence_string = ' '.join([str(x) for x in best_result[0]])
-        #print(f"{self.falling_piece} Best sequence: {best_sequence_string}  value: {best_result[1]}")
-        return best_result[0] # the sequence
-
     def play_sequence(self, sequence :list) -> bool:
         """
         Try all the movements in a sequence of movements. If we run all it will return true.
@@ -183,71 +201,45 @@ class TetrisAgent(TetrisEngine):
 
         return can_move
 
-    def get_playfield_column_statistics(self, column :list[str], first_row :int) -> tuple[int,int]:
-        highest_non_empty_row_found = False
-        highest_non_empty_row = 0
-        holes_count = 0
-        for row, value in reversed(list(enumerate(column, start=first_row))):
-            if not highest_non_empty_row_found:
-                if value != str(TetrominoShape.NONE):
-                    highest_non_empty_row_found = True
-                    highest_non_empty_row = row
-            else:
-                if value == str(TetrominoShape.NONE):
-                    holes_count += 1
-        return (highest_non_empty_row, holes_count)
-
-    def get_playfield_statistics(self, playfield: Playfield) -> dict:
-        """
-        Analyses a playfield after a piece has fallen and the lines are cleared
-        and returns a list of useful information about the playfield
-        """
-        columns = [list(column) for column in zip(*playfield.get_all_rows())]
-        first_row = playfield.min_y
+    @timing
+    def start_new_game(self, weights :dict) -> None:
         
-        column_statistics = [ self.get_playfield_column_statistics(column, first_row) for column in columns ]
-        
-        heights, holes = zip(*column_statistics)
+        self.new_game()        
 
-        # It is the sum of the absolute difference in height between adjacent columns
-        bumpiness = sum([abs(current-next) for current, next in zip(heights, heights[1:])])
+        possible_sequences = self.get_possible_drop_movements_sequence()
+        total_lines_cleared = 0
 
-        return {
-            "aggregated_height": sum(heights),
-            "total_holes": sum(holes),
-            "bumpiness": bumpiness
-        }
+        total_movements = 0
 
-    def calculate_heuristics(self, playfield_statistics :dict, lines_cleared :int, weights :dict) -> float:       
-        # aggregated_height = playfield_statistics["aggregated_height"]   # minimize. Keep the profile low (max height)
-        # total_holes       = playfield_statistics["total_holes"]         # minimize.
-        # bumpiness         = playfield_statistics["bumpiness"]           # minimize. To Avoid mountains or wells
+        while not self.is_game_over:
+            self.save_state()
+            best_sequence = self.get_best_sequence(possible_sequences, weights)
+            self.restore_state() # So we can really play the sequence, not only try-outs
+            
+            self.is_game_over = False # Important or trying a sequence can cause game over by mistake
+            self.lines_cleared = 0
+            self.play_sequence(best_sequence) # TODO play but showing in the UI enable update_playfield event
+            total_movements += 1
+            total_lines_cleared += self.lines_cleared
 
-        fitting_algorithm = (
-            weights["weight_aggregated_height"] * playfield_statistics["aggregated_height"] +
-            weights["weight_total_holes"]       * playfield_statistics["total_holes"]       +
-            weights["weight_bumpiness"]         * playfield_statistics["bumpiness"]         +
-            weights["weight_lines_cleared"]     * lines_cleared
-        )
+            #print(self.playfield)
+            #print(f'{total_lines_cleared} {self.lines_cleared}')
+            #input("Press enter")
+        print(f'Game over with {total_lines_cleared} lines cleared and {total_movements} total movements done')
 
-        # our fitting algorithm        
-        #fitting_algorithm = 5*aggregated_height + 1.1*total_holes + 0.8*bumpiness - 100*lines_cleared # 1211 lines cleared!
-
-        return fitting_algorithm
-
-    def update_playfield(self, data :dict):
-        # We only care about this to see what's going on but it won't affect our calculations
-        pass
+    def game_over(self):
+        self.try_out_sequence_is_game_over = True # Only used for the try-out, not the real game
+        self.is_game_over = True
+        #print("I reached game over") # TODO remove
 
     def update_lines_cleared_counter(self, lines_cleared :int):
         self.try_out_sequence_lines_cleared = lines_cleared
         self.lines_cleared = lines_cleared
         #print("I have lines cleared")
 
-    def game_over(self):
-        self.try_out_sequence_is_game_over = True # Only used for the try-out, not the real game
-        self.is_game_over = True
-        #print("I reached game over") # TODO remove
+    def update_playfield(self, data :dict):
+        # We only care about this to see what's going on but it won't affect our calculations
+        pass
 
     def restore_state(self):
         self.playfield.set_all_rows(self.state["rows"])
@@ -269,6 +261,6 @@ if __name__ == "__main__":
         "weight_aggregated_height":   5,
         "weight_total_holes":         1.1,
         "weight_bumpiness":           0.8,
-        "weight_lines_cleared":    -100
+        "weight_lines_cleared":    -10
     }
     agent.start_new_game(weights)
