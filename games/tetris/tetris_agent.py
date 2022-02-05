@@ -189,13 +189,15 @@ class TetrisAgent(TetrisEngine):
         and returns a list of useful information about the playfield
         """
         statistics = {}
-        
+
         # We start from the top because there could be an empty row in the middle but still pieces "frozen" above
-        row_number = playfield.rows
+        y = playfield.rows
         empty_row = [str(TetrominoShape.NONE)] * playfield.columns
-        while self.playfield.get_row(row_number) == empty_row: # Watch out! This comparison works because we are comparing lists of strings
-            row_number -= 1
-        statistics["highest_non_empty_row"] = row_number
+        while y >= playfield.min_y and self.playfield.get_row(y) == empty_row:
+            y -= 1
+        statistics["highest_non_empty_row"] = y
+
+        #non_empty_rows = [self.playfield.get_row(y) for y in range(1, statistics["highest_non_empty_row"] + 1)]
 
         # how many horizontal "pockets" in populated rows i.e. stretches of empty spaces in a row
         horizontal_pockets = 0
@@ -235,6 +237,7 @@ class TetrisAgent(TetrisEngine):
         for row_number in range(1, statistics["highest_non_empty_row"] + 1):
             row = self.playfield.get_row(row_number)
             occupied_blocks = len(row) - row.count(str(TetrominoShape.NONE))
+            potential_energy += occupied_blocks * g * row_number
             potential_energy += occupied_blocks * g * row_number
         statistics["potential_energy"] = potential_energy
 

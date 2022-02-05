@@ -225,12 +225,12 @@ class FallingPiece:
         data = next((orientation for orientation in self.orientations if angle in orientation["angles"]), None)
         return data["relative_coordinates"]
 
-    def rotate_left(self):
+    def rotate_left(self) -> None:
         self.angle -= 90
         if self.angle == -90 : self.angle = 270
         self.relative_coordinates = self.get_relative_coordinates(self.angle)
 
-    def rotate_right(self):
+    def rotate_right(self) -> None:
         self.angle += 90
         if self.angle == 360 : self.angle = 0
         self.relative_coordinates = self.get_relative_coordinates(self.angle)

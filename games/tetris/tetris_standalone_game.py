@@ -114,7 +114,7 @@ class Window(tk.Tk):
         self.total_lines_cleared += lines_cleared
         self.lines_cleared_text.set(f"Lines cleared: {self.total_lines_cleared}")
 
-    def update_playfield(self, data :dict):        
+    def update_playfield(self, data :dict):       
         if self.show_ghost_dropped_piece_checkbutton_value.get() == 1:
             self.playfield_screen.draw(
                 data["rows_from_the_bottom_up"],
@@ -127,6 +127,7 @@ class Window(tk.Tk):
                 data["falling_piece_shape"],
                 data["falling_piece_coordinates"],
                 [])
+        print(self.tetris_engine.playfield)
 
 class PlayfieldScreen(tk.Canvas):
     def __init__(self, master, columns: int, rows: int, background_color :str, tetrominoes: any, **kwargs):
