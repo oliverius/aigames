@@ -134,14 +134,20 @@ class TestTetris(unittest.TestCase):
             ['• • S S • • • • • I'],
             ['• S S Z • • • • • I']
         ]
+        scenario_3 = [
+            ['• • • S • • • • • I'],
+            ['• • • S S • • • • I'],
+            ['• • • Z S • • • • I']
+        ]
 
         # act
         playfield_statistics_scenario_1 = self.get_playfield_statistics_from_debug_rows(scenario_1)
         playfield_statistics_scenario_2 = self.get_playfield_statistics_from_debug_rows(scenario_2)
-        # todo with heuristics 1,1,1,0
+        playfield_statistics_scenario_3 = self.get_playfield_statistics_from_debug_rows(scenario_3)
 
         self.assertDictEqual({'aggregated_height': 8, 'total_holes': 1, 'bumpiness': 6}, playfield_statistics_scenario_1)
         self.assertDictEqual({'aggregated_height': 7, 'total_holes': 0, 'bumpiness': 6}, playfield_statistics_scenario_2)
+        self.assertDictEqual({'aggregated_height': 8, 'total_holes': 0, 'bumpiness': 9}, playfield_statistics_scenario_3)
 
 if __name__ == "__main__":
     unittest.main()

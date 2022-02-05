@@ -74,7 +74,6 @@ class TetrisAgent(TetrisEngine):
         for sequence in sequences:
             self.restore_state() # All the sequences start from the same beginning
 
-            self.try_out_sequence_is_game_over = False
             self.try_out_sequence_lines_cleared = 0
             
             can_play_sequence = self.play_sequence(sequence)            
@@ -130,7 +129,7 @@ class TetrisAgent(TetrisEngine):
             "bumpiness": bumpiness
         }
 
-    def get_possible_drop_movements_sequence(self) -> list[list[GameAction]]:
+    def get_possible_drop_movements_sequence(self) -> list[list[GameAction]]: # TODO unit test about this stuff.
         ga = self.GameAction
 
         starting_position_sequence = [
@@ -213,22 +212,29 @@ class TetrisAgent(TetrisEngine):
 
         while not self.is_game_over:
             self.save_state()
+
+            self.enable_on_game_over_event = False            
+            self.enable_on_playfield_updated_event = False
+            
             best_sequence = self.get_best_sequence(possible_sequences, weights)
+
             self.restore_state() # So we can really play the sequence, not only try-outs
             
             self.is_game_over = False # Important or trying a sequence can cause game over by mistake
             self.lines_cleared = 0
+
+            self.enable_on_game_over_event = True
+            self.enable_on_playfield_updated_event = True
+            
             self.play_sequence(best_sequence) # TODO play but showing in the UI enable update_playfield event
+            
             total_movements += 1
             total_lines_cleared += self.lines_cleared
 
-            #print(self.playfield)
-            #print(f'{total_lines_cleared} {self.lines_cleared}')
-            #input("Press enter")
+
         print(f'Game over with {total_lines_cleared} lines cleared and {total_movements} total movements done')
 
     def game_over(self):
-        self.try_out_sequence_is_game_over = True # Only used for the try-out, not the real game
         self.is_game_over = True
         #print("I reached game over") # TODO remove
 
