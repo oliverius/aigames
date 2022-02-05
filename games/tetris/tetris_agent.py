@@ -183,6 +183,37 @@ class TetrisAgent(TetrisEngine):
 
         return can_move
     
+    def get_playfield_statistics2(self, playfield: Playfield) -> dict:
+        columns = [list(column) for column in zip(*playfield.get_all_rows())]
+        first_row = playfield.min_y
+        
+        column_statistics = [ self.get_playfield_column_statistics(column, first_row) for column in columns ]
+        
+        heights, holes = zip(*column_statistics)
+
+        # It is the sum of the absolute difference in height between adjacent columns
+        bumpiness = sum([abs(current-next) for current, next in zip(heights, heights[1:])])
+
+        return {
+            "aggregated_height": sum(heights),
+            "total_holes": sum(holes),
+            "bumpiness": bumpiness
+        }
+
+    def get_playfield_column_statistics(self, column :list[str], first_row :int) -> tuple[int,int]:
+        highest_non_empty_row_found = False
+        highest_non_empty_row = None
+        holes_count = 0
+        for row, value in reversed(list(enumerate(column, start=first_row))):
+            if not highest_non_empty_row_found:
+                if value != str(TetrominoShape.NONE):
+                    highest_non_empty_row_found = True
+                    highest_non_empty_row = row
+            else:
+                if value == str(TetrominoShape.NONE):
+                    holes_count += 1
+        return (highest_non_empty_row, holes_count)
+
     def get_playfield_statistics(self, playfield :Playfield) -> dict:
         """
         Analyses a playfield after a piece has fallen and the lines are cleared
@@ -324,4 +355,4 @@ class TetrisAgent(TetrisEngine):
 
 if __name__ == "__main__":
     agent = TetrisAgent()
-    agent.start_new_game()
+    agent.start_new_game()   
