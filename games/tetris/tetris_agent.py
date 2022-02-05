@@ -98,7 +98,7 @@ class TetrisAgent(TetrisEngine):
         return possible_drop_movements_sequence
 
     @timing
-    def start_new_game(self) -> None:
+    def start_new_game(self, weights :dict) -> None:
         
         self.new_game()        
 
@@ -109,7 +109,7 @@ class TetrisAgent(TetrisEngine):
 
         while not self.is_game_over:
             self.save_state()
-            best_sequence = self.get_best_sequence(possible_sequences)
+            best_sequence = self.get_best_sequence(possible_sequences, weights)
             self.restore_state() # So we can really play the sequence, not only try-outs
             
             self.is_game_over = False # Important or trying a sequence can cause game over by mistake
@@ -123,7 +123,7 @@ class TetrisAgent(TetrisEngine):
             #input("Press enter")
         print(f'Game over with {total_lines_cleared} lines cleared and {total_movements} total movements done')
 
-    def get_best_sequence(self, possible_sequences :list[list[GameAction]]) -> list[GameAction]:
+    def get_best_sequence(self, possible_sequences :list[list[GameAction]], weights :dict) -> list[GameAction]:
         
         results = []
         
@@ -137,7 +137,7 @@ class TetrisAgent(TetrisEngine):
             
             if can_play_sequence:
                 statistics = self.get_playfield_statistics(self.playfield)
-                fitting_algorithm = self.calculate_heuristics(statistics, self.try_out_sequence_lines_cleared)
+                fitting_algorithm = self.calculate_heuristics(statistics, self.try_out_sequence_lines_cleared, weights)
                 results.append((sequence, fitting_algorithm))
 
                 sequence_string = ' '.join([str(x) for x in sequence])
@@ -182,8 +182,26 @@ class TetrisAgent(TetrisEngine):
             i += 1
 
         return can_move
-    
-    def get_playfield_statistics2(self, playfield: Playfield) -> dict:
+
+    def get_playfield_column_statistics(self, column :list[str], first_row :int) -> tuple[int,int]:
+        highest_non_empty_row_found = False
+        highest_non_empty_row = 0
+        holes_count = 0
+        for row, value in reversed(list(enumerate(column, start=first_row))):
+            if not highest_non_empty_row_found:
+                if value != str(TetrominoShape.NONE):
+                    highest_non_empty_row_found = True
+                    highest_non_empty_row = row
+            else:
+                if value == str(TetrominoShape.NONE):
+                    holes_count += 1
+        return (highest_non_empty_row, holes_count)
+
+    def get_playfield_statistics(self, playfield: Playfield) -> dict:
+        """
+        Analyses a playfield after a piece has fallen and the lines are cleared
+        and returns a list of useful information about the playfield
+        """
         columns = [list(column) for column in zip(*playfield.get_all_rows())]
         first_row = playfield.min_y
         
@@ -200,129 +218,21 @@ class TetrisAgent(TetrisEngine):
             "bumpiness": bumpiness
         }
 
-    def get_playfield_column_statistics(self, column :list[str], first_row :int) -> tuple[int,int]:
-        highest_non_empty_row_found = False
-        highest_non_empty_row = None
-        holes_count = 0
-        for row, value in reversed(list(enumerate(column, start=first_row))):
-            if not highest_non_empty_row_found:
-                if value != str(TetrominoShape.NONE):
-                    highest_non_empty_row_found = True
-                    highest_non_empty_row = row
-            else:
-                if value == str(TetrominoShape.NONE):
-                    holes_count += 1
-        return (highest_non_empty_row, holes_count)
+    def calculate_heuristics(self, playfield_statistics :dict, lines_cleared :int, weights :dict) -> float:       
+        # aggregated_height = playfield_statistics["aggregated_height"]   # minimize. Keep the profile low (max height)
+        # total_holes       = playfield_statistics["total_holes"]         # minimize.
+        # bumpiness         = playfield_statistics["bumpiness"]           # minimize. To Avoid mountains or wells
 
-    def get_playfield_statistics(self, playfield :Playfield) -> dict:
-        """
-        Analyses a playfield after a piece has fallen and the lines are cleared
-        and returns a list of useful information about the playfield
-        """
-        statistics = {}
+        fitting_algorithm = (
+            weights["weight_aggregated_height"] * playfield_statistics["aggregated_height"] +
+            weights["weight_total_holes"]       * playfield_statistics["total_holes"]       +
+            weights["weight_bumpiness"]         * playfield_statistics["bumpiness"]         +
+            weights["weight_lines_cleared"]     * lines_cleared
+        )
 
-        # We start from the top because there could be an empty row in the middle but still pieces "frozen" above
-        y = playfield.rows
-        empty_row = [str(TetrominoShape.NONE)] * playfield.columns
-        while y >= playfield.min_y and self.playfield.get_row(y) == empty_row:
-            y -= 1
-        statistics["highest_non_empty_row"] = y
+        # our fitting algorithm        
+        #fitting_algorithm = 5*aggregated_height + 1.1*total_holes + 0.8*bumpiness - 100*lines_cleared # 1211 lines cleared!
 
-        #non_empty_rows = [self.playfield.get_row(y) for y in range(1, statistics["highest_non_empty_row"] + 1)]
-
-        # how many horizontal "pockets" in populated rows i.e. stretches of empty spaces in a row
-        horizontal_pockets = 0
-        for row_number in range(1, statistics["highest_non_empty_row"] + 1):
-            previous_is_empty_block = False
-            row = self.playfield.get_row(row_number)
-            for block in row:
-                if block == str(TetrominoShape.NONE):
-                    if not previous_is_empty_block:
-                        horizontal_pockets += 1
-                    previous_is_empty_block = True
-                else:
-                    previous_is_empty_block = False
-        statistics["horizontal_pockets"] = horizontal_pockets
-
-        # weighted rows. The more blocks in a lower row the less energy
-        # Like potential energy in physics, more energy the higher it gets E = m*g*h
-        # In our case the mass is the number of blocks and height is the row number
-        # For example this:
-        #
-        # row 2    L L L • • • • • • •
-        # row 1    L • • • • • • • • •
-        #
-        # E = 1*1 + 3*2 = 1 + 6 = 7
-        #
-        # However if the base is bigger:
-        #
-        # row 2    L • • • • • • • • •
-        # row 1    L L L • • • • • • •
-        #
-        # E = 3*1 + 1*2 = 3 + 2 = 5 which is lower energy and therefore preferred
-        #
-        potential_energy = 0
-        g = 0.1 # The reason for this is to not exagerate the potential energy gain from row 1-20
-                # without this, the potential energy of a block in row 20 is 20 times that of a block
-                # in row 1 but with this it is 20*0.1 = 2 times more only
-        for row_number in range(1, statistics["highest_non_empty_row"] + 1):
-            row = self.playfield.get_row(row_number)
-            occupied_blocks = len(row) - row.count(str(TetrominoShape.NONE))
-            potential_energy += occupied_blocks * g * row_number
-            potential_energy += occupied_blocks * g * row_number
-        statistics["potential_energy"] = potential_energy
-
-        # Blocks that are not supported below by another block get extra weights
-        # We work with the columns
-        # Example, imagine we have this two rows:
-        #
-        #  row 2    T T T •
-        #  row 1    • T • •
-        #
-        # rows = [ 
-        #   ['T', 'T', 'T', ' '],
-        #   [' ', 'T', ' ', ' '] ]
-        #
-        # reverse_rows = [
-        #   [' ', 'T', ' ', ' '],
-        #   ['T', 'T', 'T', ' '] ]
-        #
-        # top_to_bottom_columns = [
-        #   [' ', 'T'],
-        #   ['T', 'T'],
-        #   [' ', 'T'],
-        #   [' ', ' '],
-        # ] 
-        # So it is easy to check from the top which block has no "support" underneath
-
-        unsupported_blocks = 0
-        reverse_rows = [self.playfield.get_row(y) for y in range(statistics["highest_non_empty_row"], 0, -1)]
-        top_to_bottom_columns = [list(x) for x in zip(*reverse_rows)]
-        # We start from the top until row 2 (row 1 is always supported as it is the first one)
-        for column in top_to_bottom_columns:
-            for index in range(len(column)-1):            
-                if column[index] != str(TetrominoShape.NONE) and column[index+1] == str(TetrominoShape.NONE):
-                    unsupported_blocks += 1
-        statistics["unsuported_blocks"] = unsupported_blocks
-
-        return statistics
-
-    def calculate_heuristics(self, playfield_statistics :dict, lines_cleared :int) -> float:
-        # better to put pieces on the sides instead of the middle?
-        # hidden empty block that we can lock if we move to the bottom and move left/right, instead of just dropping it?
-        # we don't want wells (empty one single line waiting for an I piece)
-        # and more (research about it)
-        
-        #top = playfield_statistics["highest_non_empty_row"] # minimize
-        horizontal_pockets = playfield_statistics["horizontal_pockets"] # minimize. Important to move pieces to the sides and avoid wells
-        potential_energy = playfield_statistics["potential_energy"] # minimize. To keep things low not growing in rows
-        unsupported_blocks = playfield_statistics["unsuported_blocks"] # minimize to avoid empty spaces under blocks
-
-        # our fitting algorithm
-        #fitting_algorithm = potential_energy + 2*unsupported_blocks + horizontal_pockets - 100*lines_cleared 165 lines
-        fitting_algorithm = potential_energy + 1.9*unsupported_blocks + horizontal_pockets - 100*lines_cleared # 248 lines        
-
-        #print(f'{potential_energy} {unsupported_blocks} {100*lines_cleared}')
         return fitting_algorithm
 
     def update_playfield(self, data :dict):
@@ -355,4 +265,10 @@ class TetrisAgent(TetrisEngine):
 
 if __name__ == "__main__":
     agent = TetrisAgent()
-    agent.start_new_game()   
+    weights = {
+        "weight_aggregated_height":   5,
+        "weight_total_holes":         1.1,
+        "weight_bumpiness":           0.8,
+        "weight_lines_cleared":    -100
+    }
+    agent.start_new_game(weights)
