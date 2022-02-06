@@ -241,10 +241,6 @@ class TetrisAgent(TetrisEngine):
         self.lines_cleared = lines_cleared
         #print("I have lines cleared")
 
-    def update_playfield(self, data :dict):
-        # We only care about this to see what's going on but it won't affect our calculations
-        pass
-
     def restore_state(self):
         self.playfield.set_all_rows(self.state["rows"])
         self.falling_piece.center_x = self.state["center_x"]
