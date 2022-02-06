@@ -45,10 +45,12 @@ class TetrisAgent(TetrisEngine):
             return self.value
 
     def __init__(self) -> None:
+
         random.seed(7) # Important here so we will have always the same first falling piece for our tests. This starts with an L
         # This has to be done before super_init because there we choose already the first piece.
+        
         super().__init__()
-        #self.bind_event(TetrisEngine.Events.ON_PLAYFIELD_UPDATED, self.update_playfield)
+        # ON_PLAYFIELD_UPDATED is not bound (we don't have UI in the agent)
         self.bind_event(TetrisEngine.Events.ON_LINES_CLEARED, self.update_lines_cleared_counter)
         self.bind_event(TetrisEngine.Events.ON_GAME_OVER, self.game_over)
 
@@ -181,7 +183,13 @@ class TetrisAgent(TetrisEngine):
         return can_move
 
     @timing
-    def start_new_game(self, weights :dict) -> None:
+    def start_new_game(self, weights :dict, max_number_of_movements = -1) -> None:
+        """
+        :param max_number_of_movements: The number of movements that the agent will run.
+        Default value -1 means to play until game over
+        Because we play sequences of 1+ movements
+        we will stop when total movements + final sequence <= max_number_of_movements
+        """
         
         self.new_game()        
 
@@ -206,11 +214,13 @@ class TetrisAgent(TetrisEngine):
             self.enable_on_game_over_event = True
             self.enable_on_playfield_updated_event = True
             
-            self.play_sequence(best_sequence)
-            
-            total_movements += 1
-            total_lines_cleared += self.lines_cleared
+            if max_number_of_movements > 0:
+                if total_movements + len(best_sequence) > max_number_of_movements:
+                    break
 
+            self.play_sequence(best_sequence)
+            total_movements += len(best_sequence)
+            total_lines_cleared += self.lines_cleared
 
         print(f'Game over with {total_lines_cleared} lines cleared and {total_movements} total movements done')
 
@@ -244,4 +254,4 @@ if __name__ == "__main__":
         "weight_bumpiness":          0.8,
         "weight_lines_cleared":    -10
     }
-    agent.start_new_game(weights)
+    agent.start_new_game(weights, 1000)

@@ -59,7 +59,6 @@ class Window(tk.Tk):
             data["falling_piece_coordinates"],
             data["ghost_dropped_piece_coordinates"])
         self.scale_down_playfield(self.playfield_screen_1)
-        
 
 if __name__ == "__main__":
     window = Window()
