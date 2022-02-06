@@ -48,15 +48,13 @@ class TetrisAgent(TetrisEngine):
         random.seed(7) # Important here so we will have always the same first falling piece for our tests. This starts with an L
         # This has to be done before super_init because there we choose already the first piece.
         super().__init__()
-        self.bind_event(TetrisEngine.Events.ON_PLAYFIELD_UPDATED, self.update_playfield) # TODO with lambdas kitchen sink
+        #self.bind_event(TetrisEngine.Events.ON_PLAYFIELD_UPDATED, self.update_playfield)
         self.bind_event(TetrisEngine.Events.ON_LINES_CLEARED, self.update_lines_cleared_counter)
         self.bind_event(TetrisEngine.Events.ON_GAME_OVER, self.game_over)
 
         self.state = {}
         self.is_game_over = False
         self.lines_cleared = 0
-        # TODO enable/disable events while calculating posibilities
-        # TODO try-out state to avoid some issues
 
     def calculate_heuristics(self, playfield_statistics :dict, lines_cleared :int, weights :dict) -> float:       
         fitting_algorithm = (
@@ -125,8 +123,8 @@ class TetrisAgent(TetrisEngine):
 
         return {
             "aggregated_height": sum(heights),
-            "total_holes": sum(holes),
-            "bumpiness": bumpiness
+            "total_holes":       sum(holes),
+            "bumpiness":         bumpiness
         }
 
     def get_possible_drop_movements_sequence(self) -> list[list[GameAction]]: # TODO unit test about this stuff.
@@ -226,7 +224,7 @@ class TetrisAgent(TetrisEngine):
             self.enable_on_game_over_event = True
             self.enable_on_playfield_updated_event = True
             
-            self.play_sequence(best_sequence) # TODO play but showing in the UI enable update_playfield event
+            self.play_sequence(best_sequence)
             
             total_movements += 1
             total_lines_cleared += self.lines_cleared
@@ -264,9 +262,9 @@ class TetrisAgent(TetrisEngine):
 if __name__ == "__main__":
     agent = TetrisAgent()
     weights = {
-        "weight_aggregated_height":   5,
-        "weight_total_holes":         1.1,
-        "weight_bumpiness":           0.8,
+        "weight_aggregated_height":  5,
+        "weight_total_holes":        1.1,
+        "weight_bumpiness":          0.8,
         "weight_lines_cleared":    -10
     }
     agent.start_new_game(weights)

@@ -101,9 +101,9 @@ class Window(tk.Tk):
 
     def show_ghost(self) -> None:
         self.focus_set()
-        # To be more responsive we show/hide the ghost piece immediately
-        # without waiting for the next movement in the screen (either keyboard
-        # or piece falling)
+        # We raise the event to be more responsive, we show/hide the ghost piece immediately
+        # without waiting for the next movement in the screen
+        # (either keyboard or piece falling)
         self.tetris_engine.raise_on_playfield_updated_event()        
 
     def stop_timer(self) -> None:
@@ -127,7 +127,6 @@ class Window(tk.Tk):
                 data["falling_piece_shape"],
                 data["falling_piece_coordinates"],
                 [])
-        print(self.tetris_engine.playfield)
 
 class PlayfieldScreen(tk.Canvas):
     def __init__(self, master, columns: int, rows: int, background_color :str, tetrominoes: any, **kwargs):

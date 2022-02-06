@@ -1,5 +1,5 @@
 # Tetris Genetic algorithms UI
-from tetris_standalone_game import PlayfieldScreen, config
+from tetris_playable import PlayfieldScreen, config
 from tetris_agent import TetrisAgent
 import tkinter as tk
 
@@ -15,9 +15,9 @@ class Window(tk.Tk):
 
         agent = TetrisAgent()
         weights = {
-            "weight_aggregated_height":   5,
-            "weight_total_holes":         1.1,
-            "weight_bumpiness":           0.8,
+            "weight_aggregated_height":  5,
+            "weight_total_holes":        1.1,
+            "weight_bumpiness":          0.8,
             "weight_lines_cleared":    -10
         }
         #agent.start_new_game(weights)

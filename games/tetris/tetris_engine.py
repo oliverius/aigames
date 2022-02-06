@@ -371,15 +371,18 @@ class TetrisEngine:
             return True
 
     def raise_on_game_over_event(self) -> None:
-        if self.enable_on_game_over_event:
+        if self.enable_on_game_over_event and TetrisEngine.Events.ON_GAME_OVER in self.event_bindings:
             self.event_bindings[TetrisEngine.Events.ON_GAME_OVER]()
 
     def raise_on_lines_cleared_event(self, lines :int) -> None:
-        if self.enable_on_lines_cleared_event:
+        if self.enable_on_lines_cleared_event and TetrisEngine.Events.ON_LINES_CLEARED in self.event_bindings:
             self.event_bindings[TetrisEngine.Events.ON_LINES_CLEARED](lines)
 
     def raise_on_playfield_updated_event(self) -> None:
         if not self.enable_on_playfield_updated_event:
+            return
+        event_bound = TetrisEngine.Events.ON_PLAYFIELD_UPDATED in self.event_bindings
+        if not event_bound:
             return
 
         data = {}
