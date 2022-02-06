@@ -72,24 +72,17 @@ class TetrisAgent(TetrisEngine):
         for sequence in sequences:
             self.restore_state() # All the sequences start from the same beginning
 
-            self.try_out_sequence_lines_cleared = 0
+            self.lines_cleared = 0
             
-            can_play_sequence = self.play_sequence(sequence)            
+            can_play_sequence = self.play_sequence(sequence)
             
             if can_play_sequence:
                 statistics = self.get_playfield_statistics(self.playfield)
-                fitting_algorithm = self.calculate_heuristics(statistics, self.try_out_sequence_lines_cleared, weights)
+                fitting_algorithm = self.calculate_heuristics(statistics, self.lines_cleared, weights)
                 results.append((sequence, fitting_algorithm))
 
-                sequence_string = ' '.join([str(x) for x in sequence])
-                # print(f'Sequence:  {sequence_string}')
-                # print(statistics)
-                # print(fitting_algorithm)
-                # print("")
-        
         best_result = min(results, key=lambda item: item[1])
-        best_sequence_string = ' '.join([str(x) for x in best_result[0]])
-        #print(f"{self.falling_piece} Best sequence: {best_sequence_string}  value: {best_result[1]}")
+
         return best_result[0] # the sequence
 
     def get_playfield_column_statistics(self, column :list[str], first_row :int) -> tuple[int,int]:
@@ -127,15 +120,10 @@ class TetrisAgent(TetrisEngine):
             "bumpiness":         bumpiness
         }
 
-    def get_possible_drop_movements_sequence(self) -> list[list[GameAction]]: # TODO unit test about this stuff.
+    def get_possible_sequences_with_drop(self) -> list[list[GameAction]]:
+        # TODO very careful not to change this. I got a surprised that when changing the order of the sequence
+        # I got a lot less lines in my example. Investigate.
         ga = self.GameAction
-
-        starting_position_sequence = [
-            [ ga.DROP ],
-            [ ga.ROTATE_LEFT, ga.DROP ],
-            [ ga.ROTATE_LEFT, ga.ROTATE_LEFT, ga.DROP ],
-            [ ga.ROTATE_LEFT, ga.ROTATE_LEFT, ga.ROTATE_LEFT, ga.DROP ]
-        ]
 
         rotation_sequence = [
             [ ],
@@ -143,28 +131,22 @@ class TetrisAgent(TetrisEngine):
             [ ga.ROTATE_LEFT, ga.ROTATE_LEFT ],
             [ ga.ROTATE_LEFT, ga.ROTATE_LEFT, ga.ROTATE_LEFT ]
         ]
-        
-        possible_drop_movements_sequence = starting_position_sequence.copy()
-        
+
+        sequences = [x + [ga.DROP] for x in rotation_sequence ] # The sequence without moving left or right just in the 'spawn' position
+
         moving_left_sequence = []
         moving_right_sequence = []
         movements_each_side = self.playfield.columns // 2
         for _ in range(movements_each_side):
             moving_left_sequence += [ ga.MOVE_LEFT]
-            sequences = [ seq + moving_left_sequence + [ ga.DROP ] for seq in rotation_sequence]
-            possible_drop_movements_sequence += sequences
+            sequences_left = [ seq + moving_left_sequence + [ ga.DROP ] for seq in rotation_sequence]
+            sequences += sequences_left
 
             moving_right_sequence += [ ga.MOVE_RIGHT]
-            sequences = [ seq + moving_right_sequence + [ ga.DROP ] for seq in rotation_sequence]
-            possible_drop_movements_sequence += sequences
+            sequences_right = [ seq + moving_right_sequence + [ ga.DROP ] for seq in rotation_sequence]
+            sequences += sequences_right
 
-        # for seq in possible_drop_movements_sequence:
-        #     for mov in seq:
-        #         print(str(mov), end=" ")
-        #     print("")
-        # input("x")
-
-        return possible_drop_movements_sequence
+        return sequences
 
     def play_sequence(self, sequence :list) -> bool:
         """
@@ -182,7 +164,7 @@ class TetrisAgent(TetrisEngine):
                 self.drop()
                 can_move = True
 
-            elif sequence[i] == ga.MOVE_LEFT:                
+            elif sequence[i] == ga.MOVE_LEFT:
                 can_move = self.move_left()
                 
             elif sequence[i] == ga.MOVE_RIGHT:
@@ -203,7 +185,7 @@ class TetrisAgent(TetrisEngine):
         
         self.new_game()        
 
-        possible_sequences = self.get_possible_drop_movements_sequence()
+        possible_sequences = self.get_possible_sequences_with_drop()
         total_lines_cleared = 0
 
         total_movements = 0
@@ -211,14 +193,14 @@ class TetrisAgent(TetrisEngine):
         while not self.is_game_over:
             self.save_state()
 
-            self.enable_on_game_over_event = False            
+            self.enable_on_game_over_event = False
             self.enable_on_playfield_updated_event = False
             
             best_sequence = self.get_best_sequence(possible_sequences, weights)
 
             self.restore_state() # So we can really play the sequence, not only try-outs
             
-            self.is_game_over = False # Important or trying a sequence can cause game over by mistake
+            self.is_game_over = False # Important trying a sequence can cause game over by mistake
             self.lines_cleared = 0
 
             self.enable_on_game_over_event = True
@@ -237,7 +219,6 @@ class TetrisAgent(TetrisEngine):
         #print("I reached game over") # TODO remove
 
     def update_lines_cleared_counter(self, lines_cleared :int):
-        self.try_out_sequence_lines_cleared = lines_cleared
         self.lines_cleared = lines_cleared
         #print("I have lines cleared")
 
@@ -253,7 +234,7 @@ class TetrisAgent(TetrisEngine):
         self.state["center_x"] = self.falling_piece.center_x
         self.state["center_y"] = self.falling_piece.center_y
         self.state["shape"] = self.falling_piece.shape
-        self.state["angle"] = self.falling_piece.angle        
+        self.state["angle"] = self.falling_piece.angle
 
 if __name__ == "__main__":
     agent = TetrisAgent()

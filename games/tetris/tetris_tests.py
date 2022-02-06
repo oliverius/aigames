@@ -149,5 +149,64 @@ class TestTetris(unittest.TestCase):
         self.assertDictEqual({'aggregated_height': 7, 'total_holes': 0, 'bumpiness': 6}, playfield_statistics_scenario_2)
         self.assertDictEqual({'aggregated_height': 8, 'total_holes': 0, 'bumpiness': 9}, playfield_statistics_scenario_3)
 
+    def test_05_possible_sequences_with_drop_value(self):
+
+        # arrange
+        agent = TetrisAgent()
+        sequences = agent.get_possible_sequences_with_drop()
+
+        # act
+        actual_movement_symbols = [ ' '.join([str(movement) for movement in sequence]) for sequence in sequences ]
+        
+        # assert
+        # Every movement assesses 44 different movement sequences to see which one is better
+        expected_movement_symbols = [
+            '⟱',
+            '↶ ⟱',
+            '↶ ↶ ⟱',
+            '↶ ↶ ↶ ⟱',
+            '🡰 ⟱',
+            '↶ 🡰 ⟱',
+            '↶ ↶ 🡰 ⟱',
+            '↶ ↶ ↶ 🡰 ⟱',
+            '🡲 ⟱',
+            '↶ 🡲 ⟱',
+            '↶ ↶ 🡲 ⟱',
+            '↶ ↶ ↶ 🡲 ⟱',
+            '🡰 🡰 ⟱',
+            '↶ 🡰 🡰 ⟱',
+            '↶ ↶ 🡰 🡰 ⟱',
+            '↶ ↶ ↶ 🡰 🡰 ⟱',
+            '🡲 🡲 ⟱',
+            '↶ 🡲 🡲 ⟱',
+            '↶ ↶ 🡲 🡲 ⟱',
+            '↶ ↶ ↶ 🡲 🡲 ⟱',
+            '🡰 🡰 🡰 ⟱',
+            '↶ 🡰 🡰 🡰 ⟱',
+            '↶ ↶ 🡰 🡰 🡰 ⟱',
+            '↶ ↶ ↶ 🡰 🡰 🡰 ⟱',
+            '🡲 🡲 🡲 ⟱',
+            '↶ 🡲 🡲 🡲 ⟱',
+            '↶ ↶ 🡲 🡲 🡲 ⟱',
+            '↶ ↶ ↶ 🡲 🡲 🡲 ⟱',
+            '🡰 🡰 🡰 🡰 ⟱',
+            '↶ 🡰 🡰 🡰 🡰 ⟱',
+            '↶ ↶ 🡰 🡰 🡰 🡰 ⟱',
+            '↶ ↶ ↶ 🡰 🡰 🡰 🡰 ⟱',
+            '🡲 🡲 🡲 🡲 ⟱',
+            '↶ 🡲 🡲 🡲 🡲 ⟱',
+            '↶ ↶ 🡲 🡲 🡲 🡲 ⟱',
+            '↶ ↶ ↶ 🡲 🡲 🡲 🡲 ⟱',
+            '🡰 🡰 🡰 🡰 🡰 ⟱',
+            '↶ 🡰 🡰 🡰 🡰 🡰 ⟱',
+            '↶ ↶ 🡰 🡰 🡰 🡰 🡰 ⟱',
+            '↶ ↶ ↶ 🡰 🡰 🡰 🡰 🡰 ⟱',
+            '🡲 🡲 🡲 🡲 🡲 ⟱',
+            '↶ 🡲 🡲 🡲 🡲 🡲 ⟱',
+            '↶ ↶ 🡲 🡲 🡲 🡲 🡲 ⟱',
+            '↶ ↶ ↶ 🡲 🡲 🡲 🡲 🡲 ⟱'
+        ]
+        self.assertEqual(expected_movement_symbols, actual_movement_symbols)  
+
 if __name__ == "__main__":
     unittest.main()
