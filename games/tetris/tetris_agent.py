@@ -254,4 +254,4 @@ if __name__ == "__main__":
         "weight_bumpiness":          0.8,
         "weight_lines_cleared":    -10
     }
-    agent.start_new_game(weights, 100) # our example is 5 lines cleared and 97 movements
+    agent.start_new_game(weights, 1000) # our example is 76 lines cleared and 998 movements in 1.9s
