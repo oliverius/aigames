@@ -15,31 +15,18 @@ class Window(tk.Tk):
         self.title("AI Games - Tetris Genetic algorithms")
         self.geometry("1000x600")
         
+        self.setup_playfield_frames()
+
+        exit_button = ttk.Button(self, text="Exit", command=exit) # TODO stop everything gracefully
+        exit_button.place(x=900, y=550)
+
         weights = {
             "weight_aggregated_height":  5,
             "weight_total_holes":        1.1,
             "weight_bumpiness":          0.8,
             "weight_lines_cleared":    -10
         }
-
-        agent_number = 1
-        self.playfield_frames :list[PlayfieldFrame] = []
-        for y in range(2):
-            for x in range(3):
-                playfield_frame = PlayfieldFrame(self, width=310, height=250, bg="lightslategrey")
-
-                x0 = 10 + (playfield_frame.width  + 20) * x
-                y0 = 10 + (playfield_frame.height + 20) * y
-                
-                playfield_frame.set_agent_number_label(agent_number)
-                playfield_frame.set_weight_labels(weights)
-                playfield_frame.place(x=x0, y=y0)
-                
-                self.playfield_frames.append(playfield_frame)
-                agent_number += 1
-
-        exit_button = ttk.Button(self, text="Exit", command=exit) # TODO stop everything gracefully
-        exit_button.place(x=900, y=550)
+        self.set_weight_labels(1, weights)
 
         fps = 10 # frames per second i.e. movements in the playfield stored in the queue
         self.speed = int(1000/fps)
@@ -66,6 +53,27 @@ class Window(tk.Tk):
             p.join()
 
         self.destroy()
+
+    def set_weight_labels(self, agent_number :int, weights :dict) -> None:
+        index = agent_number - 1
+        self.playfield_frames[index].set_weight_labels(weights)
+
+    def setup_playfield_frames(self) -> None:
+        agent_number = 1
+        self.playfield_frames :list[PlayfieldFrame] = []
+        for y in range(2):
+            for x in range(3):
+                playfield_frame = PlayfieldFrame(self, width=310, height=250, bg="lightslategrey")
+
+                x0 = 10 + (playfield_frame.width  + 20) * x
+                y0 = 10 + (playfield_frame.height + 20) * y
+                
+                playfield_frame.set_agent_number_label(agent_number)
+                #playfield_frame.set_weight_labels(weights)
+                playfield_frame.place(x=x0, y=y0)
+                
+                self.playfield_frames.append(playfield_frame)
+                agent_number += 1
 
     def update_playfield(self) -> None:
         """
