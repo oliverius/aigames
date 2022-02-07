@@ -1,6 +1,4 @@
 # Tetris Genetic algorithms UI
-from turtle import bgcolor
-from numpy import place
 from tetris_playable import PlayfieldScreen, config
 from tetris_agent import TetrisAgent
 from tetris_engine import TetrisEngine
@@ -20,6 +18,13 @@ class Window(tk.Tk):
         exit_button = ttk.Button(self, text="Exit", command=exit) # TODO stop everything gracefully
         exit_button.place(x=900, y=550)
 
+        fps = 10 # frames per second i.e. movements in the playfield stored in the queue
+        self.speed = int(1000/fps)
+
+        self.processes :list[(mp.Process,mp.Event)] = []
+        self.queues :list[mp.Queue] = [mp.Queue() for _ in range(6)]
+        self.event = mp.Event()
+        
         weights = {
             "weight_aggregated_height":  5,
             "weight_total_holes":        1.1,
@@ -27,15 +32,19 @@ class Window(tk.Tk):
             "weight_lines_cleared":    -10
         }
         self.set_weight_labels(1, weights)
-
-        fps = 10 # frames per second i.e. movements in the playfield stored in the queue
-        self.speed = int(1000/fps)
-        
-        self.queue = mp.Queue() # the queue doesn't need to be top-level like 'run_agent'
-        self.processes :list[mp.Process] = []
-        self.event = mp.Event()
-        p = mp.Process(target=run_agent, args=(weights, 100, self.queue), kwargs={'event': self.event})
+        p = mp.Process(target=run_agent, args=(weights, 100, self.queues[0]), kwargs={'event': self.event})
         self.processes.append((p, self.event))
+
+        weights = {
+            "weight_aggregated_height":  3,
+            "weight_total_holes":        1.1,
+            "weight_bumpiness":          3,
+            "weight_lines_cleared":    -10
+        }
+        self.set_weight_labels(2, weights)
+        p = mp.Process(target=run_agent, args=(weights, 100, self.queues[1]), kwargs={'event': self.event})
+        self.processes.append((p, self.event))
+
         for p, _ in self.processes:
             p.start()
 
@@ -44,13 +53,14 @@ class Window(tk.Tk):
         self.update_playfield_timer = self.after(500, self.update_playfield)
 
     def exit(self) -> None:
-        while not self.queue.empty():
-            self.queue.get()
+        # while not self.queue.empty():
+        #     self.queue.get()
         for _, event in self.processes:
             event.set()
         for p, _ in self.processes:
-            p.terminate()
+            print("joining in")
             p.join()
+            p.terminate()
 
         self.destroy()
 
@@ -81,12 +91,15 @@ class Window(tk.Tk):
         The easiest way to deal with this is to let the agent run and queue all the data for updating the playfield
         in a queue and with a timer start getting elements until the queue is empty.
         """
-        if self.queue.empty():
-            print("it is empty")
+        print(self.processes[0][0].is_alive())
+        if all([queue.empty() for queue in self.queues]):
+            print("all queues empty")
             self.after_cancel(self.update_playfield_timer)
         else:
-            data = self.queue.get()
-            self.playfield_frames[0].update(data)
+            for index, queue in enumerate(self.queues):
+                if not queue.empty():
+                    data = queue.get()
+                    self.playfield_frames[index].update(data)
             self.after(self.speed, self.update_playfield) # Call again the timer
 
 # It has to be top-level or we will get an error when starting the process:
@@ -96,6 +109,8 @@ def run_agent(weights: dict, max_number_of_movements :int, queue :mp.Queue, even
     agent.bind_event(TetrisEngine.Events.ON_PLAYFIELD_UPDATED, lambda data: queue.put(data))
     agent.start_new_game(weights, max_number_of_movements)
     print(f"the queue is {queue.qsize()}")
+    event.set()
+    # set the event here after all is done?
 
 class PlayfieldFrame(tk.Frame):
     def __init__(self, master, width :int, height :int, **kwargs):
@@ -115,21 +130,23 @@ class PlayfieldFrame(tk.Frame):
         self.playfield_screen.place(x=x, y=y)
 
         x = 140
+        bg =self["bg"] # Same color as the frame background
+        fg = "white"
 
         self.agent_number_text = tk.StringVar()
-        ttk.Label(self, textvariable=self.agent_number_text).place(x=x, y=y)
+        ttk.Label(self, textvariable=self.agent_number_text, foreground=fg, background=bg).place(x=x, y=y)
 
         self.weight_aggregated_height_text = tk.StringVar()
-        ttk.Label(self, textvariable=self.weight_aggregated_height_text).place(x=x, y=y+20)
+        ttk.Label(self, textvariable=self.weight_aggregated_height_text, foreground=fg, background=bg).place(x=x, y=y+20)
 
         self.weight_total_holes_text = tk.StringVar()
-        ttk.Label(self, textvariable=self.weight_total_holes_text).place(x=x, y=y+40)
+        ttk.Label(self, textvariable=self.weight_total_holes_text, foreground=fg, background=bg).place(x=x, y=y+40)
 
         self.weight_bumpiness_text = tk.StringVar()
-        ttk.Label(self, textvariable=self.weight_bumpiness_text).place(x=x, y=y+60)
+        ttk.Label(self, textvariable=self.weight_bumpiness_text, foreground=fg, background=bg).place(x=x, y=y+60)
 
         self.weight_lines_cleared_text = tk.StringVar()
-        ttk.Label(self, textvariable=self.weight_lines_cleared_text).place(x=x, y=y+80)
+        ttk.Label(self, textvariable=self.weight_lines_cleared_text, foreground=fg, background=bg).place(x=x, y=y+80)
 
     def scale_down_playfield_screen(self, playfield_screen :PlayfieldScreen) -> None:
         """
